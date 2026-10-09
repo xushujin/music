@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 拟态配色固定浅色，深色模式下窗口背景保持一致，避免闪色 -->
+    <style name="Theme.LightMusic" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFE7EAF0</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

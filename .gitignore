@@ -1,0 +1,30 @@
+# ---- Gradle / 构建产物 ----
+.gradle/
+.kotlin/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ---- IDE ----
+*.iml
+.idea/
+
+# ---- 本地配置 / 签名密钥（切勿入库）----
+local.properties
+keystore/
+*.jks
+*.keystore
+!debug.keystore
+
+# ---- 打包产物 ----
+*.apk
+*.aab
+dist/
+
+# ---- 系统 / 杂项 ----
+.DS_Store
+*.log
+
+# ---- WorkBuddy 项目内存（本机私有，非源码）----
+.workbuddy-ai/
