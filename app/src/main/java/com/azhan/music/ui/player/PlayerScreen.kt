@@ -24,8 +24,6 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -50,7 +48,6 @@ import com.azhan.music.ui.common.findSong
 import com.azhan.music.ui.common.formatTime
 import com.azhan.music.ui.common.rememberLyrics
 import com.azhan.music.ui.theme.Neu
-import com.azhan.music.ui.theme.NeuButton
 import com.azhan.music.ui.theme.NeuIconButton
 import com.azhan.music.ui.theme.NeuShapes
 import com.azhan.music.ui.theme.NeuSlider
@@ -277,22 +274,7 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(Modifier.height(18.dp))
-
-            NeuButton(onClick = onOpenLyrics) {
-                Icon(
-                    Icons.Filled.Subtitles,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = Neu.Accent,
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = if (lyrics.isEmpty) "全屏歌词（无歌词文件）" else "全屏歌词",
-                    color = Neu.Accent,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+            // 不单独放「全屏歌词」按钮：歌词区本身就是可点的，点一下即进全屏
 
             player.errorMessage?.let { message ->
                 Spacer(Modifier.height(12.dp))
