@@ -211,9 +211,18 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 
 ### GitHub Actions 自动编译
 
-仓库自带 `.github/workflows/build-apk.yml`：push 到 `main`（或在 Actions 页手动触发）时，
-自动在 `ubuntu-latest` 上装 JDK 21 + Android SDK（`platforms;android-37` / `build-tools;36.0.0`），
+仓库自带 `.github/workflows/build-apk.yml`：**打 tag 才触发**（也可在 Actions 页手动触发）。
+触发后在 `ubuntu-latest` 上装 JDK 21 + Android SDK（`platforms;android-37` / `build-tools;36.0.0`），
 执行 `./gradlew assembleRelease`，产物上传为 Artifact **`lightmusic-release-apk`**。
+
+```bash
+git tag v1.0          # 需以 v 开头，如 v1.0 / v1.1 / v2.0
+git push origin v1.0  # 推上去即触发编译
+```
+
+> 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
+> 另注：GitHub 的 `if:` 表达式里不能用 `secrets` 上下文，所以工作流把「有没有配密钥」
+> 的判断放在 shell 里做，secrets 只通过 `env` 注入。
 
 签名有两种路径（决定 APK 能否安装）：
 
