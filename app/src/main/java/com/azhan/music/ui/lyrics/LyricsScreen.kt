@@ -40,7 +40,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -81,7 +80,6 @@ import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuBox
 import com.azhan.music.ui.theme.NeuIconButton
 import com.azhan.music.ui.theme.NeuShapes
-import com.azhan.music.ui.theme.NeuSlider
 import com.azhan.music.ui.theme.neuInset
 import com.azhan.music.ui.theme.neuRaised
 import kotlinx.coroutines.delay
@@ -116,7 +114,10 @@ fun LyricsScreen(app: MusicApp, onBack: () -> Unit) {
     val song = remember(playlists, player.currentSongId) { playlists.findSong(player.currentSongId) }
     val songId = song?.id
 
-    var reloadKey by remember { mutableIntStateOf(0) }
+    // 初值给 1：每次进全屏都强制重读 .lrc，这样在电脑上改完歌词回来就能看到。
+    // 顶栏因此不再放「刷新」按钮——它平时点了没变化，看着像坏了。
+    // （播放页走的仍是缓存，不受影响。）
+    var reloadKey by remember { mutableIntStateOf(1) }
     val lyrics = rememberLyrics(app, song, reloadKey)
     val offset = prefs.offsetOf(songId)
 
@@ -261,18 +262,6 @@ fun LyricsScreen(app: MusicApp, onBack: () -> Unit) {
                     maxLines = 1,
                 )
             }
-            NeuIconButton(
-                icon = Icons.Filled.Refresh,
-                onClick = { reloadKey++ },
-                contentDescription = "重新加载歌词",
-                size = 44.dp,
-                iconSize = 19.dp,
-                tint = Neu.TextSecondary,
-                color = Neu.Background,
-                highlight = Neu.Highlight,
-                shadow = Neu.Shadow,
-            )
-            Spacer(Modifier.width(10.dp))
             NeuIconButton(
                 icon = Icons.Filled.Tune,
                 onClick = { panelVisible = !panelVisible },
@@ -461,17 +450,7 @@ private fun LyricControlPanel(
                     )
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            NeuSlider(
-                value = hueOf(color),
-                onValueChange = { hue -> onColor(colorFromHue(hue)) },
-                onValueChangeFinished = { },
-                trackColor = Neu.Background,
-                highlight = Neu.Highlight,
-                shadow = Neu.Shadow,
-            )
-
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
 
             // ---- 字号 ----
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -599,15 +578,6 @@ private fun NoLyricsHint(
 
 private fun offsetLabel(offsetMs: Long): String =
     if (offsetMs == 0L) "0.0s" else String.format(Locale.US, "%+.1fs", offsetMs / 1000f)
-
-private fun hueOf(argb: Long): Float {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(argb.toInt(), hsv)
-    return hsv[0]
-}
-
-private fun colorFromHue(hue: Float): Long =
-    android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.75f, 1f)).toLong() and 0xFFFFFFFFL
 
 /** 把当前行滚到视口正中。 */
 private suspend fun LazyListState.centerOn(index: Int) {
