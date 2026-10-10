@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -51,7 +50,6 @@ import com.azhan.music.ui.common.findSong
 import com.azhan.music.ui.common.formatTime
 import com.azhan.music.ui.common.rememberLyrics
 import com.azhan.music.ui.theme.Neu
-import com.azhan.music.ui.theme.NeuBox
 import com.azhan.music.ui.theme.NeuButton
 import com.azhan.music.ui.theme.NeuIconButton
 import com.azhan.music.ui.theme.NeuShapes
@@ -139,33 +137,7 @@ fun PlayerScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // 封面位：凸起方块 + 内部凹陷圆
-            NeuBox(
-                modifier = Modifier.size(248.dp),
-                shape = NeuShapes.art,
-                color = Neu.Background,
-                blur = 18.dp,
-                offset = 8.dp,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(140.dp)
-                        .background(Neu.Background, NeuShapes.pill)
-                        .neuInset(NeuShapes.pill, stroke = 4.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(58.dp),
-                        tint = Neu.AccentSoft,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(26.dp))
-
+            // 中间不放封面占位方块：文件名直接放最上面，下面整块留给歌词
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.headlineSmall,
@@ -175,20 +147,13 @@ fun PlayerScreen(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = song.displayArtist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Neu.TextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
 
             Spacer(Modifier.height(18.dp))
 
-            // 歌词预览
+            // 歌词预览：占满中间剩余空间（封面去掉后，歌词就是主视觉）
             Box(
                 modifier = Modifier
+                    .weight(1f)
                     .fillMaxWidth()
                     .background(Neu.Background, NeuShapes.chip)
                     .neuInset(NeuShapes.chip, stroke = 2.5.dp)

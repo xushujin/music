@@ -203,8 +203,14 @@ fun LyricsScreen(app: MusicApp, onBack: () -> Unit) {
         } else {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = screenHeight * 0.4f),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    // 歌词区从顶部按钮栏下方才开始，滚动时不会钻到返回键/标题底下。
+                    // 顶部栏是后绘制的浮层且没有底衬，不预留这段就会和歌词字叠在一起。
+                    .padding(top = 72.dp),
+                // 视口被上面截掉一截，留白要略大于「半个视口」才能保证首尾行也能居中
+                contentPadding = PaddingValues(vertical = screenHeight * 0.45f),
             ) {
                 itemsIndexed(lyrics.lines) { index, line ->
                     LyricLineRow(
