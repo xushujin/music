@@ -342,8 +342,13 @@ git push origin v1.0  # 推上去即触发编译
 1. **构建在无签名密钥时也能通过**：已处理。`app/build.gradle.kts` 在既没有
    `KEYSTORE_PATH` 环境变量、也没有仓库内 `keystore/lightmusic-release.jks` 时，
    会**产出未签名**的 release 包（而不是构建失败），F-Droid 用它自己的密钥重新签名。
-2. **提交构建配方**：向 `gitlab.com/fdroid/fdroiddata` 提 MR，新增
-   `metadata/com.azhan.music.yml`（含 Builds / License: Apache-2.0 / AutoUpdateMode 等）。
+2. **提交构建配方**：配方已写好，见 [`fdroid/com.azhan.music.yml`](fdroid/com.azhan.music.yml)。
+   把它复制到 `gitlab.com/fdroid/fdroiddata` 的 `metadata/` 目录（文件名必须是
+   `com.azhan.music.yml`），然后提 MR。
+3. **每次发版必须递增 `versionCode`**：F-Droid 靠 `versionCode` 判断新旧，
+   一直停在 `1` 会导致新版本无法被识别。配方里配了 `UpdateCheckData`，
+   会自动从 `app/build.gradle.kts` 读取 `versionCode` / `versionName`。
 
 注意：F-Droid 版与本地/CI 版**签名不同**，用户切换时需要先卸载旧版。
-另外 compileSdk 37 较新，F-Droid 构建服务器能否装到对应 SDK 需要实际验证。
+另外 compileSdk 37 较新，F-Droid 构建服务器能否装到对应 SDK 需要实际验证——
+这一条我无法在本地确认，若构建服务器不支持，需在 MR 评审时与 F-Droid 维护者沟通。

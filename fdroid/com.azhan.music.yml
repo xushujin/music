@@ -1,0 +1,40 @@
+# 轻响 · F-Droid 构建配方（fdroiddata metadata）
+#
+# 提交方式：把本文件复制到 fdroiddata 仓库的 metadata/ 目录，**文件名必须是
+# com.azhan.music.yml**，然后向 https://gitlab.com/fdroid/fdroiddata 提 MR。
+# 放在应用仓库里只是随代码一起版本管理；F-Droid 只读 fdroiddata 里那一份。
+#
+# 字段用法参考了真实配方（Droid-ify / com.looker.droidify），未使用任何不确定的字段。
+
+Categories:
+  - Multimedia
+License: Apache-2.0
+AuthorName: xushujin
+WebSite: https://github.com/xushujin/music
+SourceCode: https://github.com/xushujin/music
+IssueTracker: https://github.com/xushujin/music/issues
+Changelog: https://github.com/xushujin/music/releases
+
+AutoName: 轻响
+
+RepoType: git
+Repo: https://github.com/xushujin/music.git
+
+# 说明：
+# - Gradle 工程根就在仓库根目录（settings.gradle.kts 在根），所以不写 subdir。
+# - 本项目没有任何测试源集（app/src 下只有 main），因此不需要 scandelete。
+# - 无签名密钥时 release 构建会产出 app-release-unsigned.apk（见 app/build.gradle.kts
+#   的 canSign 逻辑），F-Droid 拿到的就是它，再由 F-Droid 用自己的密钥签名。
+# - commit 指向的 tag 必须包含 LICENSE 与上面的签名逻辑（即 v1.0 之后重新打的 tag）。
+Builds:
+  - versionName: '1.0'
+    versionCode: 1
+    commit: v1.0
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[\d.]+$
+UpdateCheckData: app/build.gradle.kts|versionCode\s*=\s*(\d+)|.|versionName\s*=\s*"(.*)"
+CurrentVersion: '1.0'
+CurrentVersionCode: 1
