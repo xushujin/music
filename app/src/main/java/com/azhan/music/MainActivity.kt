@@ -26,6 +26,10 @@ class MainActivity : ComponentActivity() {
         val app = application as MusicApp
         app.player.connect()
 
+        // 定时退出到点：关掉界面（finishAndRemoveTask 同时把它从「最近任务」里移除）。
+        // 播放暂停由 PlaybackController 自己完成，这里只负责收尾。
+        app.player.onSleepTimerEnd = { finishAndRemoveTask() }
+
         setContent {
             MusicTheme {
                 AppRoot(app)
@@ -34,8 +38,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        val app = application as MusicApp
+        // 界面销毁后回调要摘掉，避免持有已销毁的 Activity
+        app.player.onSleepTimerEnd = null
         if (isFinishing) {
-            (application as MusicApp).player.release()
+            app.player.release()
         }
         super.onDestroy()
     }

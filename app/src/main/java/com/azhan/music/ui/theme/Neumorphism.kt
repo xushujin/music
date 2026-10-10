@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -333,5 +334,54 @@ fun NeuSlider(
                     .background(accent, NeuShapes.pill)
             )
         }
+    }
+}
+
+/**
+ * 拟态小胶囊按钮（预设时长、时间微调、字号 ± 都用它）。
+ * 按下变凹陷，松开回凸起；`accent` 控制文字用强调色还是主文字色。
+ */
+@Composable
+fun NeuChip(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    accent: Boolean = false,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = NeuShapes.pill
+    val decorated = if (pressed && enabled) {
+        Modifier
+            .background(Neu.Background, shape)
+            .neuInset(shape, stroke = 2.dp, highlight = Neu.Highlight, shadow = Neu.Shadow)
+    } else {
+        Modifier
+            .neuRaised(shape, blur = 8.dp, offset = 3.dp, highlight = Neu.Highlight, shadow = Neu.Shadow)
+            .background(Neu.Background, shape)
+    }
+    Box(
+        modifier = modifier
+            .then(decorated)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
+            .padding(horizontal = 8.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = when {
+                !enabled -> Neu.TextSecondary.copy(alpha = 0.45f)
+                accent -> Neu.Accent
+                else -> Neu.TextPrimary
+            },
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+        )
     }
 }

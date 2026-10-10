@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -63,6 +64,22 @@ class PlaybackController(private val context: Context) {
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    /** 定时退出：剩余毫秒，0 表示未启用。 */
+    var sleepRemainingMs by mutableLongStateOf(0L)
+        private set
+
+    /** 定时退出：本次设定的总分钟数（用于在预设里高亮当前选项），0 表示未启用。 */
+    var sleepTotalMinutes by mutableIntStateOf(0)
+        private set
+
+    /**
+     * 定时器到点后的回调，在主线程调用。MainActivity 用它来关掉界面。
+     * 放在这里而不是 UI 层，是因为定时器必须在界面不可见时也能可靠触发。
+     */
+    var onSleepTimerEnd: (() -> Unit)? = null
+
+    private var sleepJob: Job? = null
+
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@PlaybackController.isPlaying = isPlaying
@@ -119,6 +136,7 @@ class PlaybackController(private val context: Context) {
     }
 
     fun release() {
+        cancelSleepTimer()
         stopTicker()
         controller?.removeListener(listener)
         controller = null
@@ -189,6 +207,39 @@ class PlaybackController(private val context: Context) {
     fun toggleShuffle() {
         val mediaController = controller ?: return
         mediaController.shuffleModeEnabled = !mediaController.shuffleModeEnabled
+    }
+
+    // ---- 定时退出 ----
+
+    /**
+     * 启动倒计时，到点后暂停播放并触发 [onSleepTimerEnd]。
+     * 用「绝对结束时间」算剩余，而不是累加 delay，避免长时间运行后的漂移。
+     */
+    fun startSleepTimer(minutes: Int) {
+        if (minutes <= 0) return
+        sleepJob?.cancel()
+        sleepTotalMinutes = minutes
+        sleepRemainingMs = minutes * 60_000L
+        sleepJob = scope.launch {
+            val endAt = System.currentTimeMillis() + minutes * 60_000L
+            while (isActive) {
+                val left = endAt - System.currentTimeMillis()
+                sleepRemainingMs = left.coerceAtLeast(0L)
+                if (left <= 0L) break
+                delay(500)
+            }
+            sleepJob = null
+            sleepTotalMinutes = 0
+            runCatching { controller?.pause() } // 到点先停止播放
+            onSleepTimerEnd?.invoke()           // 再让界面退出
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepJob?.cancel()
+        sleepJob = null
+        sleepRemainingMs = 0L
+        sleepTotalMinutes = 0
     }
 
     private fun syncFrom(mediaController: MediaController) {

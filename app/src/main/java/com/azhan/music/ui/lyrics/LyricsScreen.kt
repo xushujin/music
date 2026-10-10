@@ -13,7 +13,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,10 +77,8 @@ import com.azhan.music.ui.common.findSong
 import com.azhan.music.ui.common.rememberLyrics
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuBox
+import com.azhan.music.ui.theme.NeuChip
 import com.azhan.music.ui.theme.NeuIconButton
-import com.azhan.music.ui.theme.NeuShapes
-import com.azhan.music.ui.theme.neuInset
-import com.azhan.music.ui.theme.neuRaised
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.abs
@@ -496,51 +493,6 @@ private fun OffsetChip(
         modifier = modifier,
         accent = false,
     )
-}
-
-@Composable
-private fun NeuChip(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    accent: Boolean = false,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val shape = NeuShapes.pill
-    val decorated = if (pressed && enabled) {
-        Modifier
-            .background(Neu.Background, shape)
-            .neuInset(shape, stroke = 2.dp, highlight = Neu.Highlight, shadow = Neu.Shadow)
-    } else {
-        Modifier
-            .neuRaised(shape, blur = 8.dp, offset = 3.dp, highlight = Neu.Highlight, shadow = Neu.Shadow)
-            .background(Neu.Background, shape)
-    }
-    Box(
-        modifier = modifier
-            .then(decorated)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                enabled = enabled,
-                onClick = onClick,
-            )
-            .padding(horizontal = 8.dp, vertical = 9.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = when {
-                !enabled -> Neu.TextSecondary.copy(alpha = 0.45f)
-                accent -> Neu.Accent
-                else -> Neu.TextPrimary
-            },
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-        )
-    }
 }
 
 @Composable

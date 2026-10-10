@@ -36,6 +36,8 @@
 - Media3 ExoPlayer + MediaSessionService：**后台播放 + 系统通知栏控制 + 锁屏控制**（media3 自带，无需手写通知）
   - 注：App 不申请通知权限，Android 13+ 上通知默认不显示，需到系统设置手动打开（见 v1.2 实测）；后台播放本身不受影响
 - 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
+- **定时退出**：顶栏图标进入设置，预设 15 / 30 / 60 / 90 / 120 分钟，或自定义 1–600 分钟；
+  到点自动**停止播放并退出应用**。启用后顶栏图标变成显示剩余时间的小胶囊，可随时取消
 - 上一首：播放超过 3 秒时先回到本曲开头（主流播放器习惯）
 - 音频焦点处理、拔耳机自动暂停、本地唤醒锁
 
@@ -72,15 +74,15 @@ music/
         │   └── LyricsRepository.kt     # 歌词定位 + LruCache
         ├── player/
         │   ├── PlaybackService.kt      # MediaSessionService
-        │   └── PlaybackController.kt   # MediaController → Compose state
+        │   └── PlaybackController.kt   # MediaController → Compose state + 定时退出
         └── ui/
             ├── AppRoot.kt              # 导航（4 个页面，字符串路由）
             ├── theme/Theme.kt          # 固定浅色拟态主题
-            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuSlider / 凸起凹陷）
+            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSlider / 凸起凹陷）
             ├── common/                 # 时间格式化、歌词记忆、迷你播放条
             ├── home/HomeScreen.kt      # 播放列表（目录）列表
             ├── playlist/PlaylistScreen.kt
-            ├── player/PlayerScreen.kt  # 播放页：文件名 + 整块歌词（可点进全屏，无封面占位）
+            ├── player/PlayerScreen.kt  # 播放页：文件名 + 整块歌词 + 定时退出面板（无封面占位）
             └── lyrics/LyricsScreen.kt  # 全屏歌词 + 控制面板
 ```
 
@@ -104,6 +106,7 @@ music/
 | 移除顶栏「刷新」按钮 | 改为进入全屏时强制重读 `.lrc`，改完歌词重新进来即可看到 |
 | 移除颜色滑条 | 只保留 8 个预设色块（原滑条在白色预设下位置与实际颜色不符） |
 | GitHub Actions 自动编译 | **打 tag 才触发** `assembleRelease`；产物挂到 GitHub Release + 上传为 Artifact |
+| 新增定时退出 | 顶栏入口；预设 15/30/60/90/120 分钟 + 自定义；到点停止播放并退出 App |
 
 > 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
@@ -123,7 +126,7 @@ AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用
 **在 Android 17 模拟器上重装验证通过。** 新版 APK 路径同下：
 
 ```
-dist/轻响-LightMusic-1.0.0-release.apk   2.34 MB  ← 装机用这个
+dist/轻响-LightMusic-1.0.0-release.apk   2.49 MB  ← 装机用这个
 ```
 
 | 变更 | 验证 |
@@ -190,7 +193,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.0.0-release.apk` | **2.34 MB** | 1 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.0.0-release.apk` | **2.49 MB** | 1 |
 | debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.0.0-debug.apk` | 23.6 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
@@ -315,7 +318,7 @@ git push origin v1.0.0  # 推上去即触发编译
 
 1. 曲库搜索框（`LazyColumn` 前加过滤，几行代码）
 2. 播放队列界面（`controller.getMediaItemAt(i)` 直接可用）
-3. 睡眠定时器 / 倍速播放（ExoPlayer 原生支持 `setPlaybackSpeed`）
+3. 倍速播放（ExoPlayer 原生支持 `setPlaybackSpeed`）
 4. 歌词字体/行距自定义、歌词竖排等纯 UI 增强（不涉及读标签，与现有取舍不冲突）
 
 > 以下两项早期曾列入计划，但**与现在「不读音频标签、只认文件名和文件夹名」的取舍相悖**，
@@ -329,7 +332,7 @@ git push origin v1.0.0  # 推上去即触发编译
 
 `material-icons-extended` 已被 androidx 冻结在 1.7.8（模块已从主干移除，但 Compose BOM 仍 pin 住这个版本，可正常解析）。
 
-它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.6 MB / 15 个 dex，release 包 **2.34 MB / 1 个 dex**。
+它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.6 MB / 15 个 dex，release 包 **2.49 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
 
 ---
