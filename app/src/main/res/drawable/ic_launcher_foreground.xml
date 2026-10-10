@@ -1,16 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标上层：拟态凸起圆盘 + 强调色音符。
+  配色取自 App 的拟态调色板（Neu.*）：
+    背景 #E7EAF0 / 阴影 #BFC6D4 / 强调色 #5B6CFF
+  立体感做法：底层渐变（左上亮、右下暗）+ 右下偏移的阴影月牙 + 圆盘用底色。
+  这样不依赖向量渐变（避免 <gradient> 坐标单位歧义），纯色填充即可。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- 阴影：比圆盘略大、向右下偏移 1dp，只在右下露出一道月牙 -->
+    <path
+        android:pathData="M55,55m-30.5,0a30.5,30.5 0 1,0 61,0a30.5,30.5 0 1,0 -61,0"
+        android:fillColor="#99BFC6D4" />
+
+    <!-- 凸起圆盘：用 App 背景色，靠底层渐变浮起来 -->
+    <path
+        android:pathData="M54,54m-30,0a30,30 0 1,0 60,0a30,30 0 1,0 -60,0"
+        android:fillColor="#FFE7EAF0" />
+
+    <!-- 音符：App 强调色。24dp 图标的包围盒是 x 6~18 / y 3~21（中心 12,12），
+         放大 1.9 倍后 translate = 54 - 12*1.9 = 31.2，正好居中 -->
     <group
-        android:scaleX="2.9"
-        android:scaleY="2.9"
-        android:translateX="18.5"
-        android:translateY="18.5">
+        android:scaleX="1.9"
+        android:scaleY="1.9"
+        android:translateX="31.2"
+        android:translateY="31.2">
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z" />
+            android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z"
+            android:fillColor="#FF5B6CFF" />
     </group>
 </vector>

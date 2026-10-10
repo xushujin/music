@@ -50,7 +50,9 @@ music/
 ├── gradlew / gradlew.bat / gradle/wrapper/
 └── app/src/main/
     ├── AndroidManifest.xml
-    ├── res/                            # 主题、自适应图标（纯矢量，无二进制图）
+    ├── res/                            # 主题 + 拟态自适应图标（纯矢量，无二进制图）
+    │                                   #   底层左上亮/右下暗渐变，上层凸起圆盘 + 强调色音符
+    │                                   #   配色取自 Neu.*（#E7EAF0 / #BFC6D4 / #5B6CFF）
     └── java/com/azhan/music/
         ├── MusicApp.kt                 # 手写依赖容器（唯一的"注入"处）
         ├── MainActivity.kt

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标底层：左上偏亮、右下偏暗的斜向渐变（angle=315 即左上 → 右下）。
+  这一层既是拟态的"底"，也负责让上层的圆盘看起来是浮起来的：
+  圆盘用 App 背景色 #E7EAF0，四周左上更亮、右下更暗，就形成了凸起观感。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="#FFF4F7FB"
+        android:endColor="#FFD5DCE7" />
+</shape>
