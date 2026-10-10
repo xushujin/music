@@ -218,7 +218,9 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `轻响-LightMusic-v1.0.apk`。
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.0.apk`
+  （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
+  用中文名会被削成 `-LightMusic-v1.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
