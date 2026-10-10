@@ -48,6 +48,10 @@ music/
 ├── settings.gradle.kts / build.gradle.kts / gradle.properties
 ├── gradle/libs.versions.toml          # 版本集中管理
 ├── gradlew / gradlew.bat / gradle/wrapper/
+├── LICENSE                            # Apache-2.0
+├── .github/workflows/build-apk.yml    # 打 tag 自动编译 + 挂 GitHub Release
+├── fdroid/com.azhan.music.yml         # F-Droid 上架配方（需提交到 fdroiddata）
+├── dist/                              # 本地交付的 APK（已 gitignore）
 └── app/src/main/
     ├── AndroidManifest.xml
     ├── res/                            # 主题 + 拟态自适应图标（纯矢量，无二进制图）
@@ -84,7 +88,7 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前仍是 `1.0` / `versionCode 1`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.0.0` / `versionCode 1`）。
 
 ### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
 
@@ -99,7 +103,7 @@ music/
 | 全屏歌词避开顶部按钮栏 | 歌词视口顶部预留 72dp，滚动时不再与返回键/标题重叠 |
 | 移除顶栏「刷新」按钮 | 改为进入全屏时强制重读 `.lrc`，改完歌词重新进来即可看到 |
 | 移除颜色滑条 | 只保留 8 个预设色块（原滑条在白色预设下位置与实际颜色不符） |
-| GitHub Actions 自动编译 | push `main` 触发 `assembleRelease`，产物上传为 Artifact |
+| GitHub Actions 自动编译 | **打 tag 才触发** `assembleRelease`；产物挂到 GitHub Release + 上传为 Artifact |
 
 > 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
@@ -119,7 +123,7 @@ AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用
 **在 Android 17 模拟器上重装验证通过。** 新版 APK 路径同下：
 
 ```
-dist/轻响-LightMusic-1.0-release.apk   2.34 MB  ← 装机用这个
+dist/轻响-LightMusic-1.0.0-release.apk   2.34 MB  ← 装机用这个
 ```
 
 | 变更 | 验证 |
@@ -186,15 +190,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.0-release.apk` | **2.34 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.0-debug.apk` | 23.6 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.0.0-release.apk` | **2.34 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.0.0-debug.apk` | 23.6 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.0-release.apk
+adb install -r dist/轻响-LightMusic-1.0.0-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -218,15 +222,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.0.0.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.0.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.0          # 需以 v 开头，如 v1.0 / v1.1 / v2.0
-git push origin v1.0  # 推上去即触发编译
+git tag v1.0.0          # 需以 v 开头，如 v1.0.0 / v1.0.1 / v2.0.0
+git push origin v1.0.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -241,9 +245,12 @@ git push origin v1.0  # 推上去即触发编译
 - **方式 B（零配置兜底）**：没配密钥时，工作流自动用 Android debug keystore 签名，
   APK **一样能安装**；但每次 CI 密钥不同，覆盖安装前需先卸载旧包。
 
-`app/build.gradle.kts` 的 release signingConfig 会读环境变量 `KEYSTORE_PATH` /
-`KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`；未设置时回落到仓库内
-`keystore/lightmusic-release.jks`（即本地构建走这条路）。
+`app/build.gradle.kts` 的签名来源分三档：
+
+1. 环境变量 `KEYSTORE_PATH` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`（CI 注入）
+2. 仓库内 `keystore/lightmusic-release.jks`（本地构建走这条）
+3. **两者都没有时（如 F-Droid 从干净检出构建）→ 不签名**，产出未签名的 release 包，
+   而不是让构建失败（F-Droid 会用它自己的密钥重新签名）
 
 ### Android Studio
 
@@ -322,7 +329,7 @@ git push origin v1.0  # 推上去即触发编译
 
 `material-icons-extended` 已被 androidx 冻结在 1.7.8（模块已从主干移除，但 Compose BOM 仍 pin 住这个版本，可正常解析）。
 
-它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.6 MB / 15 个 dex，release 包 **2.4 MB / 1 个 dex**。
+它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.6 MB / 15 个 dex，release 包 **2.34 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
 
 ---
