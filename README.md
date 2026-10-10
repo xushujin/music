@@ -13,8 +13,9 @@
 - 播放列表名字 = 目录名字；一个目录 = 一个播放列表
 - 支持添加多个目录，递归扫描子目录（最深 8 层）
 - 递归时在同级目录里自动配对同名 `.lrc`
-- 音频格式：mp3 / m4a / aac / flac / wav / ogg / opus / wma / ape / aiff / mka / amr / 3gp / dsf / dff
-- 手动「重新扫描」可增量更新（元数据按 `uri|size|modified` 缓存，重扫几乎瞬间完成）
+- 音频格式：mp3 / m4a / mp4a / aac / flac / wav / wave / ogg / oga / opus / wma / ape / aif / aiff / mka / amr / 3gp / dsf / dff
+- 手动「重新扫描」重新遍历目录（不读音频标签，纯列目录，速度取决于文件数）
+- **不读任何音频标签**：歌曲标题 = 文件名（去扩展名），艺术家/专辑留空，时长由播放器播放时实时提供
 
 ### 2. 歌词
 
@@ -24,14 +25,16 @@
 - **双语歌词合并**：同一时间戳出现两次时，第二行作为翻译显示在原文下方
 - 全屏歌词：当前行高亮 + 自动居中滚动，点击任意行跳转播放位置
 - 手动拖动时暂停自动滚动 2.5 秒，不跟你抢
-- **换颜色**：8 个预设色 + 色相滑杆，全局生效
+- **换颜色**：8 个预设色（墨/黄/粉/青/绿/紫/橙/红），全局生效
 - **时间微调**：±0.1 / ±0.5 / ±1.0 秒 + 归零，**按歌曲分别记忆**（不同歌的偏移量不通用）
 - 字号可调（14–44sp）
-- 歌词是后补的？点右上角刷新即可重新读取，不用重扫目录
+- 歌词是后补的？**进入全屏歌词就会自动重读一次** `.lrc`，不用重扫目录；
+  没找到歌词时，页面中间的提示里也有「重新加载歌词」按钮
 
 ### 3. 播放
 
 - Media3 ExoPlayer + MediaSessionService：**后台播放 + 系统通知栏控制 + 锁屏控制**（media3 自带，无需手写通知）
+  - 注：App 不申请通知权限，Android 13+ 上通知默认不显示，需到系统设置手动打开（见 v1.2 实测）；后台播放本身不受影响
 - 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
 - 上一首：播放超过 3 秒时先回到本曲开头（主流播放器习惯）
 - 音频焦点处理、拔耳机自动暂停、本地唤醒锁
@@ -52,10 +55,9 @@ music/
         ├── MusicApp.kt                 # 手写依赖容器（唯一的"注入"处）
         ├── MainActivity.kt
         ├── data/
-        │   ├── Models.kt               # Song / Playlist / SongMeta / LyricPrefs
-        │   ├── MusicStore.kt           # DataStore + JSON 持久化（3 个 key 分开存）
-        │   ├── MusicScanner.kt         # SAF 递归遍历 + 歌词配对
-        │   ├── MetadataReader.kt       # MediaMetadataRetriever 读标签
+        │   ├── Models.kt               # Song / Playlist / LyricPrefs
+        │   ├── MusicStore.kt           # DataStore + JSON 持久化（2 个 key 分开存）
+        │   ├── MusicScanner.kt         # SAF 递归遍历 + 按文件名配对歌词
         │   ├── LibraryRepository.kt    # 曲库状态机（StateFlow）
         │   └── LyricPrefsState.kt      # 歌词偏好（Compose state，写入去抖）
         ├── lyrics/
@@ -67,17 +69,37 @@ music/
         │   └── PlaybackController.kt   # MediaController → Compose state
         └── ui/
             ├── AppRoot.kt              # 导航（4 个页面，字符串路由）
-            ├── theme/Theme.kt
+            ├── theme/Theme.kt          # 固定浅色拟态主题
+            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuSlider / 凸起凹陷）
             ├── common/                 # 时间格式化、歌词记忆、迷你播放条
             ├── home/HomeScreen.kt      # 播放列表（目录）列表
             ├── playlist/PlaylistScreen.kt
-            ├── player/PlayerScreen.kt  # 播放页 + 两行歌词预览
+            ├── player/PlayerScreen.kt  # 播放页：文件名 + 整块歌词（可点进全屏，无封面占位）
             └── lyrics/LyricsScreen.kt  # 全屏歌词 + 控制面板
 ```
 
 ---
 
 ## 二·五、实测验证记录
+
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前仍是 `1.0` / `versionCode 1`）。
+
+### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
+
+以下改动均通过 `./gradlew :app:assembleRelease`（BUILD SUCCESSFUL）+ `apksigner` 签名校验，
+但**没有在模拟器上做过视觉复核**，请以实际装机效果为准。
+
+| 变更 | 说明 |
+|---|---|
+| 歌词/歌曲匹配改为纯文件名 | 标题 = 文件名去扩展名，不再读音频标签；删除 `MetadataReader` 与 `meta_cache` |
+| 播放页去掉中间封面方块 | 文件名置顶 + 歌词区 `weight(1f)` 占满中间；点歌词区进全屏 |
+| 播放页移除「全屏歌词」按钮 | 歌词区本身可点，按钮是重复入口 |
+| 全屏歌词避开顶部按钮栏 | 歌词视口顶部预留 72dp，滚动时不再与返回键/标题重叠 |
+| 移除顶栏「刷新」按钮 | 改为进入全屏时强制重读 `.lrc`，改完歌词重新进来即可看到 |
+| 移除颜色滑条 | 只保留 8 个预设色块（原滑条在白色预设下位置与实际颜色不符） |
+| GitHub Actions 自动编译 | push `main` 触发 `assembleRelease`，产物上传为 Artifact |
+
+> 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
 ### v1.2 · 去掉通知权限申请
 
@@ -111,8 +133,10 @@ dist/轻听-LightMusic-1.0-release.apk   2.34 MB  ← 装机用这个
   这是 GPU 安全的，效果可看 dist/screenshots/。
 - 自带 Material 的 Slider 在拟态界面里很违和，所以**自己写了一个 NeuSlider**：凹陷轨道 +
   渐变进度 + 凸起圆形滑块，`detectTapGestures` + `detectHorizontalDragGestures` 双重手势。
-- 拟态天然依赖"元素与背景同色、靠阴影分层"，所以 App **不跟随系统深色模式**固定浅色；
-  全屏歌词单独用一套深色拟态配色（见 LyricsScreen），避免夜里看歌词刺眼。
+- 拟态天然依赖"元素与背景同色、靠阴影分层"，深色背景上阴影会糊成一片，所以 App
+  **不跟随系统深色模式**，固定浅色。
+- 全屏歌词页**也用同一套浅色拟态**（早期版本单独用深色配色，因与播放页观感不一致已改回浅色）。
+  歌词文字颜色经 `readableColor()` 保留色相但压暗提饱和，保证在浅底上有足够对比度。
 
 ### v1.0 · 完整流程实测
 
@@ -121,7 +145,7 @@ dist/轻听-LightMusic-1.0-release.apk   2.34 MB  ← 装机用这个
 | 安装 + 启动 | ✅ 无 FATAL，进程存活 |
 | 后台播放服务 | ✅ 日志出现 `Background started FGS ... MediaSessionService cmp=com.azhan.music/.player.PlaybackService` |
 | 添加目录（SAF） | ✅ 选 `/sdcard/Music` 授权后，自动生成名为 `Music` 的播放列表 |
-| 目录扫描 | ✅ 扫到 2 个音频文件，**时长正确读出 00:20** |
+| 目录扫描 | ✅ 扫到 2 个音频文件（**v1.0 时期会读标签显示时长 00:20；现版本不读标签，列表不再显示时长**） |
 | `.lrc` 配对 | ✅ 两首歌列表里都显示「歌词」标记 |
 | 播放 | ✅ `playbackState=PLAYING`，position 从 2788ms 正常推进到 5804ms |
 | 自动切下一首 | ✅ 第一首播完自动切到第二首 |
@@ -160,7 +184,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻听-LightMusic-1.0-release.apk` | **2.4 MB** | 1 |
+| release（已签名，推荐） | `dist/轻听-LightMusic-1.0-release.apk` | **2.34 MB** | 1 |
 | debug（便于看崩溃堆栈） | `dist/轻听-LightMusic-1.0-debug.apk` | 23.6 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
@@ -181,6 +205,27 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 - store / key 密码：`lightmusic`
 
 **个人自用够用；要上架应用商店请换成你自己的 keystore 并妥善保管**（丢了就没法覆盖升级）。
+
+> 密钥**不入库**：`.gitignore` 已忽略 `keystore/`、`*.jks`、`local.properties`、
+> `build/`、`app/build/`、`dist/`、`.workbuddy-ai/`、`*.apk`。
+
+### GitHub Actions 自动编译
+
+仓库自带 `.github/workflows/build-apk.yml`：push 到 `main`（或在 Actions 页手动触发）时，
+自动在 `ubuntu-latest` 上装 JDK 21 + Android SDK（`platforms;android-37` / `build-tools;36.0.0`），
+执行 `./gradlew assembleRelease`，产物上传为 Artifact **`lightmusic-release-apk`**。
+
+签名有两种路径（决定 APK 能否安装）：
+
+- **方式 A（推荐）**：仓库 `Settings → Secrets → Actions` 加 `KEYSTORE_BASE64`
+  （本地执行 `base64 -i keystore/lightmusic-release.jks` 得到）。
+  APK 用与你本地**同一个** keystore 签名，版本更新可直接覆盖安装。
+- **方式 B（零配置兜底）**：没配密钥时，工作流自动用 Android debug keystore 签名，
+  APK **一样能安装**；但每次 CI 密钥不同，覆盖安装前需先卸载旧包。
+
+`app/build.gradle.kts` 的 release signingConfig 会读环境变量 `KEYSTORE_PATH` /
+`KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`；未设置时回落到仓库内
+`keystore/lightmusic-release.jks`（即本地构建走这条路）。
 
 ### Android Studio
 
@@ -214,9 +259,9 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 
 **用 SAF 而不是 MediaStore。** MediaStore 是"全机扫描"模型，没法表达"我只要这几个目录"，而且要 `READ_MEDIA_AUDIO` 权限。SAF 拿到的是持久化读权限，目录边界清晰，还能在 Android 14+ 的部分存储限制下正常工作。
 
-**冷启动不扫描。** 扫描结果（含元数据）落盘，启动时只读 JSON。3000 首的曲库启动耗时基本等于读一个几百 KB 的文件。代价是曲库不会自动跟随文件系统变化 —— 所以留了「重新扫描」按钮。
+**冷启动不扫描。** 扫描结果落盘，启动时只读 JSON。3000 首的曲库启动耗时基本等于读一个几百 KB 的文件。代价是曲库不会自动跟随文件系统变化 —— 所以留了「重新扫描」按钮。
 
-**元数据按 `uri|size|modified` 缓存。** 重扫时文件没变就直接命中缓存，不再开 `MediaMetadataRetriever`（这是扫描慢的主要来源）。首次扫描用 4 并发 + 信号量限流。
+**完全不读音频标签。** 早期版本会用 `MediaMetadataRetriever` 读标题/艺术家/专辑/时长，并做 `uri|size|modified` 缓存；现已全部删除（`MetadataReader` 已移除）。原因：① 逐个开 `MediaMetadataRetriever` 是扫描慢的主要来源；② 歌曲信息与文件名不一致时，歌词配对会产生"看着有歌词却配不上"的困惑。现在的规则非常简单：**一切都以文件名和文件夹名为准** —— 标题 = 文件名去扩展名，`.lrc` 与音频文件同名即配对，播放列表名 = 目录名。代价是列表页在播放前看不到时长（时长改由播放器实时提供）。
 
 **位置刷新用 `derivedStateOf` 收口。** 播放位置 80ms 更新一次，如果直接读会让整个界面每秒重组 12 次。这里把"当前歌词行号"包成 derivedState，只有**行号变化**时才触发重组，行内动画用 `animateFloatAsState` 平滑。
 
@@ -232,19 +277,26 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 
 - 曲库不监听文件系统变化，新增/删除歌曲需要手动「重新扫描」
 - 不支持内嵌歌词（仅 `.lrc` 外挂文件）、不支持逐字歌词（`.krc` / `.qrc`）
-- 不读专辑封面（`MediaMetadataRetriever` 取封面会让列表滚动变卡，有意省掉）
+- **不读任何音频标签**：没有专辑封面、艺术家、专辑、时长（列表里播放前不显示时长）；
+  早期版本读标签会明显拖慢扫描，且标签与文件名不一致时歌词配对容易困惑，故有意省掉
 - 没有搜索、没有收藏、没有排序方式切换
 - 歌词偏移按文件 uri 记忆，歌曲文件被移动/改名后会丢失
+- 颜色只有 8 个预设，不能自定义任意色相（原色相滑条因定位不准已移除）
+- 通知栏控制在 Android 13+ 默认不可用（不申请通知权限，需到系统设置手动打开，见 v1.2）
 
 ## 七、后续可扩展方向
 
 按改动成本从低到高：
 
-1. 播放页加专辑封面（用 `LruCache` + `MediaMetadataRetriever.embeddedPicture`，只给当前曲目加载）
-2. 曲库搜索框（`LazyColumn` 前加过滤，几行代码）
-3. 播放队列界面（`controller.getMediaItemAt(i)` 直接可用）
-4. 睡眠定时器 / 倍速播放（ExoPlayer 原生支持 `setPlaybackSpeed`）
-5. 内嵌歌词支持（`MediaMetadataRetriever` 读 `METADATA_KEY_LYRICS` 或解析 ID3 USLT 帧）
+1. 曲库搜索框（`LazyColumn` 前加过滤，几行代码）
+2. 播放队列界面（`controller.getMediaItemAt(i)` 直接可用）
+3. 睡眠定时器 / 倍速播放（ExoPlayer 原生支持 `setPlaybackSpeed`）
+4. 歌词字体/行距自定义、歌词竖排等纯 UI 增强（不涉及读标签，与现有取舍不冲突）
+
+> 以下两项早期曾列入计划，但**与现在「不读音频标签、只认文件名和文件夹名」的取舍相悖**，
+> 要做就得重新引入 `MediaMetadataRetriever` 并接受扫描变慢，当前**不建议**：
+> - 播放页加专辑封面（`embeddedPicture`，只给当前曲目加载）
+> - 内嵌歌词支持（读 `METADATA_KEY_LYRICS` 或解析 ID3 USLT 帧）
 
 ---
 
