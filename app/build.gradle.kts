@@ -18,28 +18,39 @@ android {
         versionName = "1.0"
     }
 
+    // 签名来源（按优先级）：
+    //   1) CI：环境变量 KEYSTORE_PATH（由 GitHub Secrets 注入，或工作流生成的 debug keystore）
+    //   2) 本地：仓库内的个人 keystore（已 gitignore）
+    //   3) 都没有（如 F-Droid 从干净检出构建）→ **不签名**，产出未签名 release 包，
+    //      而不是让构建失败。F-Droid 会用它自己的密钥重新签名。
+    val ciKeystorePath = System.getenv("KEYSTORE_PATH")
+    val localKeystore = rootProject.file("keystore/lightmusic-release.jks")
+    val canSign = ciKeystorePath != null || localKeystore.exists()
+
     signingConfigs {
         create("release") {
-            // 本地：用仓库内（已 gitignore）的个人 keystore。
-            // CI：从环境变量读取（由 GitHub Secrets 注入），密钥不进仓库。
-            val ciKeystore = System.getenv("KEYSTORE_PATH")
-            if (ciKeystore != null) {
-                storeFile = file(ciKeystore)
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "lightmusic"
-                keyAlias = System.getenv("KEY_ALIAS") ?: "lightmusic"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "lightmusic"
-            } else {
-                storeFile = rootProject.file("keystore/lightmusic-release.jks")
-                storePassword = "lightmusic"
-                keyAlias = "lightmusic"
-                keyPassword = "lightmusic"
+            when {
+                ciKeystorePath != null -> {
+                    storeFile = file(ciKeystorePath)
+                    storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "lightmusic"
+                    keyAlias = System.getenv("KEY_ALIAS") ?: "lightmusic"
+                    keyPassword = System.getenv("KEY_PASSWORD") ?: "lightmusic"
+                }
+
+                localKeystore.exists() -> {
+                    storeFile = localKeystore
+                    storePassword = "lightmusic"
+                    keyAlias = "lightmusic"
+                    keyPassword = "lightmusic"
+                }
+                // else：没有可用密钥，不设置 storeFile；buildTypes 里也不会挂这个配置
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (canSign) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

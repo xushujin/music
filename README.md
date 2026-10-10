@@ -324,3 +324,26 @@ git push origin v1.0  # 推上去即触发编译
 
 它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.6 MB / 15 个 dex，release 包 **2.4 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
+
+---
+
+## 九、许可证
+
+本项目基于 **Apache License 2.0** 发布，全文见仓库根目录 [`LICENSE`](LICENSE)。
+
+这意味着你可以自由使用、修改、分发（包括商用），只需保留版权与许可声明。选择 Apache-2.0
+而不是 GPL 系，是因为它与本项目依赖（AndroidX / Media3 / kotlinx.serialization 等）的
+许可一致，且不要求衍生作品开源。
+
+### 关于 F-Droid
+
+如果要上架 F-Droid，除了本许可证外还需要满足：
+
+1. **构建在无签名密钥时也能通过**：已处理。`app/build.gradle.kts` 在既没有
+   `KEYSTORE_PATH` 环境变量、也没有仓库内 `keystore/lightmusic-release.jks` 时，
+   会**产出未签名**的 release 包（而不是构建失败），F-Droid 用它自己的密钥重新签名。
+2. **提交构建配方**：向 `gitlab.com/fdroid/fdroiddata` 提 MR，新增
+   `metadata/com.azhan.music.yml`（含 Builds / License: Apache-2.0 / AutoUpdateMode 等）。
+
+注意：F-Droid 版与本地/CI 版**签名不同**，用户切换时需要先卸载旧版。
+另外 compileSdk 37 较新，F-Droid 构建服务器能否装到对应 SDK 需要实际验证。
