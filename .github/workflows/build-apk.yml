@@ -17,6 +17,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# 把 APK 挂到 Release 需要写权限
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -89,8 +93,28 @@ jobs:
       - name: Build release APK
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: lightmusic-release-apk
           path: app/build/outputs/apk/release/*.apk
+
+      # 把 APK 挂到 GitHub Release。只在 tag 构建时执行：
+      # 手动触发（workflow_dispatch）没有 tag，创建不了 Release，只出 artifact。
+      # 用 runner 自带的 gh CLI（不引第三方 action）；已存在同名 Release 就覆盖资源。
+      - name: Attach APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          ASSET="轻响-LightMusic-${TAG}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$ASSET"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，覆盖资源"
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            echo "创建 Release $TAG"
+            gh release create "$TAG" "$ASSET" --title "轻响 $TAG" --generate-notes
+          fi
+          gh release view "$TAG" --json url,tagName,assets

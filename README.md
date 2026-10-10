@@ -215,7 +215,12 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 
 仓库自带 `.github/workflows/build-apk.yml`：**打 tag 才触发**（也可在 Actions 页手动触发）。
 触发后在 `ubuntu-latest` 上装 JDK 21 + Android SDK（`platforms;android-37.0` / `build-tools;36.0.0`），
-执行 `./gradlew assembleRelease`，产物上传为 Artifact **`lightmusic-release-apk`**。
+执行 `./gradlew assembleRelease`。产物有两个去处：
+
+- **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
+  并把 APK 作为附件挂上去，文件名形如 `轻响-LightMusic-v1.0.apk`。
+  已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
+- **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
 git tag v1.0          # 需以 v 开头，如 v1.0 / v1.1 / v2.0
