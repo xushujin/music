@@ -214,7 +214,7 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 ### GitHub Actions 自动编译
 
 仓库自带 `.github/workflows/build-apk.yml`：**打 tag 才触发**（也可在 Actions 页手动触发）。
-触发后在 `ubuntu-latest` 上装 JDK 21 + Android SDK（`platforms;android-37` / `build-tools;36.0.0`），
+触发后在 `ubuntu-latest` 上装 JDK 21 + Android SDK（`platforms;android-37.0` / `build-tools;36.0.0`），
 执行 `./gradlew assembleRelease`，产物上传为 Artifact **`lightmusic-release-apk`**。
 
 ```bash
