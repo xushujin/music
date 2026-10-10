@@ -4,9 +4,13 @@ name: Build Release APK
 #   git tag v1.0 && git push origin v1.0
 # 也可以在 Actions 页面手动触发（workflow_dispatch）。
 #
-# 注意：GitHub 的 if: 表达式里**不能**用 secrets 上下文
-# （会报 "Unrecognized named-value: 'secrets'"）。所以「有没有配签名密钥」
-# 这个判断放到 shell 里做，secrets 只通过 env 注入给脚本。
+# 两个踩过的坑（别再犯）：
+# 1) GitHub 的 if: 表达式里**不能**用 secrets 上下文（会报
+#    "Unrecognized named-value: 'secrets'"）。所以「有没有配签名密钥」的判断
+#    放到 shell 里做，secrets 只通过 env 注入。
+# 2) 不用 android-actions/setup-android：它在 cmdline-tools 16.0 上会去装早已
+#    下线的 legacy "tools" 包，`sdkmanager tools` 直接 exit code 1 让整个 job 挂掉。
+#    GitHub 的 ubuntu runner 本来就预装了完整 Android SDK，直接用即可。
 on:
   push:
     tags:
@@ -27,18 +31,24 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # 直接用 runner 预装的 Android SDK（镜像已把 ANDROID_HOME 设为
+      # /usr/local/lib/android/sdk），只补装我们需要的几个包。
       # 平台包名必须带 .0：仓库里只有 platforms;android-37.0 / 37.1 / 37.2，
-      # **不存在** platforms;android-37（不带 .0），写了会 "Failed to find package" 并退出码 1。
-      # build-tools 保持 36.0.0：本机已验证与 compileSdk 37 + AGP 9.4.1 兼容，
-      # 且仓库中 36.0.0 是稳定版（不要降到 35，AGP 对新 compileSdk 有最低 build-tools 要求）。
-      - name: Install SDK packages (compileSdk 37 / build-tools 36)
+      # **不存在** platforms;android-37，写了会 "Failed to find package" 退出码 1。
+      # build-tools 保持 36.0.0（仓库稳定版，本机验证与 compileSdk 37 + AGP 9.4.1 兼容）。
+      - name: Install Android SDK packages
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platform-tools" "platforms;android-37.0" "build-tools;36.0.0"
-          sdkmanager --list_installed
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          # 优先用 cmdline-tools/latest，没有就取版本号最大的那个目录
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMANAGER" ] || SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -1)"
+          echo "sdkmanager=$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-37.0" "build-tools;36.0.0"
+          "$SDKMANAGER" --list_installed
 
       # 签名密钥决定 APK 能否安装，两条路径：
       #   方式 A（推荐）：仓库 Settings → Secrets → Actions 配 KEYSTORE_BASE64
