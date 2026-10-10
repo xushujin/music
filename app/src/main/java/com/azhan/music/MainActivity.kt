@@ -14,7 +14,7 @@ import com.azhan.music.ui.theme.MusicTheme
  * 但**后台播放本身照常工作** —— 没有 POST_NOTIFICATIONS 时 startForeground() 仍会成功，
  * 只是通知被系统丢掉，不会崩溃。
  *
- * 想恢复通知的用户可以在「系统设置 → 通知 → 轻听」里手动打开，
+ * 想恢复通知的用户可以在「系统设置 → 通知 → 轻响」里手动打开，
  * 所以 AndroidManifest 里仍然保留了权限声明。
  */
 class MainActivity : ComponentActivity() {

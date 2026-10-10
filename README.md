@@ -1,4 +1,4 @@
-# 轻听 · 本地音乐播放器
+# 轻响 · 本地音乐播放器
 
 原生 Android 播放器，Kotlin + Jetpack Compose，**零第三方 UI 框架、零 DI 框架、零数据库**。
 只做两件事：**按目录建播放列表** + **同步歌词（全屏 / 换色 / 时间微调）**。
@@ -112,14 +112,14 @@ music/
 position 2792ms → 5802ms 正常推进，FATAL 计数 0。
 
 AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用户可以在
-「系统设置 → 通知 → 轻听」手动打开，通知会立刻恢复。
+「系统设置 → 通知 → 轻响」手动打开，通知会立刻恢复。
 
 ### v1.1 · 拟态（Neumorphism）风格 + 全屏歌词面板默认收起
 
 **在 Android 17 模拟器上重装验证通过。** 新版 APK 路径同下：
 
 ```
-dist/轻听-LightMusic-1.0-release.apk   2.34 MB  ← 装机用这个
+dist/轻响-LightMusic-1.0-release.apk   2.34 MB  ← 装机用这个
 ```
 
 | 变更 | 验证 |
@@ -186,15 +186,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻听-LightMusic-1.0-release.apk` | **2.34 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻听-LightMusic-1.0-debug.apk` | 23.6 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.0-release.apk` | **2.34 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.0-debug.apk` | 23.6 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻听-LightMusic-1.0-release.apk
+adb install -r dist/轻响-LightMusic-1.0-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
