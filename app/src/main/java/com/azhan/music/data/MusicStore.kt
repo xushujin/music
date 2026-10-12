@@ -16,7 +16,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 /**
  * 极简持久化：DataStore + JSON。
- * 拆成三个 key 是为了让高频写入（歌词微调）不会连带重写整个曲库。
+ * 拆成四个 key 是为了让高频写入（歌词微调、最后播放的歌）不会连带重写整个曲库。
  */
 class MusicStore(context: Context) {
 
@@ -29,6 +29,7 @@ class MusicStore(context: Context) {
     private val playlistsKey = stringPreferencesKey("playlists")
     private val lyricKey = stringPreferencesKey("lyric_prefs")
     private val favoritesKey = stringPreferencesKey("favorites")
+    private val appPrefsKey = stringPreferencesKey("app_prefs")
 
     private val playlistsSerializer = ListSerializer(Playlist.serializer())
     private val favoritesSerializer = ListSerializer(String.serializer())
@@ -50,6 +51,17 @@ class MusicStore(context: Context) {
         prefs[favoritesKey]?.let {
             runCatching { json.decodeFromString(favoritesSerializer, it) }.getOrNull()
         }?.toSet() ?: emptySet()
+    }
+
+    /** 全局偏好（设置页）。 */
+    val appPrefs: Flow<AppPrefs> = appContext.dataStore.data.map { prefs ->
+        prefs[appPrefsKey]?.let {
+            runCatching { json.decodeFromString(AppPrefs.serializer(), it) }.getOrNull()
+        } ?: AppPrefs()
+    }
+
+    suspend fun saveAppPrefs(prefs: AppPrefs) {
+        appContext.dataStore.edit { it[appPrefsKey] = json.encodeToString(AppPrefs.serializer(), prefs) }
     }
 
     suspend fun savePlaylists(list: List<Playlist>) {

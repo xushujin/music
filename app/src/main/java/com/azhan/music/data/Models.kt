@@ -47,3 +47,21 @@ data class LyricPrefs(
     val fontSize: Float = 22f,
     val offsets: Map<String, Long> = emptyMap(),
 )
+
+/** 定时退出倒计时到点后的动作。 */
+@Serializable
+enum class SleepAction { EXIT, PAUSE }
+
+/**
+ * 全局偏好（设置页）。
+ *
+ * @param sleepAction 倒计时到点后是退出应用还是只暂停
+ * @param autoResume  启动时是否把上次播放的歌装回播放器（只装载、不自动播放）
+ * @param lastSongId  上次播放的歌曲 id，仅用于上面的恢复
+ */
+@Serializable
+data class AppPrefs(
+    val sleepAction: SleepAction = SleepAction.EXIT,
+    val autoResume: Boolean = true,
+    val lastSongId: String? = null,
+)

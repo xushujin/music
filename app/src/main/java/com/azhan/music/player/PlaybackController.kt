@@ -15,6 +15,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.azhan.music.data.SleepAction
 import com.azhan.music.data.Song
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -77,6 +78,9 @@ class PlaybackController(private val context: Context) {
      * 放在这里而不是 UI 层，是因为定时器必须在界面不可见时也能可靠触发。
      */
     var onSleepTimerEnd: (() -> Unit)? = null
+
+    /** 倒计时到点后的动作，由设置页决定（默认退出应用）。 */
+    var sleepAction: SleepAction = SleepAction.EXIT
 
     private var sleepJob: Job? = null
 
@@ -163,6 +167,23 @@ class PlaybackController(private val context: Context) {
         mediaController.play()
     }
 
+    /**
+     * 只装载队列、不开始播放（供「启动时恢复上次播放」用）。
+     * 与 [play] 的唯一区别是最后不调 play()，所以不会一启动就出声。
+     */
+    fun prepare(songs: List<Song>, startIndex: Int) {
+        if (songs.isEmpty()) return
+        val mediaController = controller
+        if (mediaController == null) {
+            connect()
+            pendingAction = { prepare(songs, startIndex) }
+            return
+        }
+        val items = songs.map { it.toMediaItem() }
+        mediaController.setMediaItems(items, startIndex.coerceIn(0, items.size - 1), 0L)
+        mediaController.prepare()
+    }
+
     fun toggle() {
         val mediaController = controller ?: return
         if (mediaController.isPlaying) {
@@ -231,7 +252,8 @@ class PlaybackController(private val context: Context) {
             sleepJob = null
             sleepTotalMinutes = 0
             runCatching { controller?.pause() } // 到点先停止播放
-            onSleepTimerEnd?.invoke()           // 再让界面退出
+            // 再按设置决定：退出应用，还是只停在这里
+            if (sleepAction == SleepAction.EXIT) onSleepTimerEnd?.invoke()
         }
     }
 

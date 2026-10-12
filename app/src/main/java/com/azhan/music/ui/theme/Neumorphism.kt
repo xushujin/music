@@ -1,5 +1,7 @@
 package com.azhan.music.ui.theme
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +39,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -382,6 +386,97 @@ fun NeuChip(
             },
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
+        )
+    }
+}
+
+/**
+ * 分段选择：凹陷轨道 + 凸起选中块。用于少量互斥选项（如倒计时到点动作）。
+ */
+@Composable
+fun <T> NeuSegmented(
+    options: List<T>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 12.dp,
+    label: (T) -> String,
+) {
+    val trackShape = RoundedCornerShape(cornerRadius + 6.dp)
+    Row(
+        modifier = modifier
+            .padding(6.dp)
+            .background(Neu.Background, trackShape)
+            .neuInset(trackShape, stroke = 3.dp)
+            .padding(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        options.forEach { option ->
+            val active = option == selected
+            val itemShape = RoundedCornerShape(cornerRadius)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (active) {
+                            Modifier
+                                .neuRaised(itemShape, blur = 8.dp, offset = 3.dp)
+                                .background(Neu.Background, itemShape)
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onSelect(option) }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label(option),
+                    color = if (active) Neu.Accent else Neu.TextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** 拟态开关：凹陷轨道 + 凸起圆钮，打开时圆钮用强调色。 */
+@Composable
+fun NeuSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val trackWidth = 52.dp
+    val trackHeight = 30.dp
+    val thumbSize = 24.dp
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) trackWidth - thumbSize - 6.dp else 0.dp,
+        animationSpec = tween(durationMillis = 180),
+        label = "neuSwitchThumb",
+    )
+
+    Box(
+        modifier = modifier
+            .size(trackWidth, trackHeight)
+            .background(Neu.Background, RoundedCornerShape(trackHeight / 2))
+            .neuInset(RoundedCornerShape(trackHeight / 2), stroke = 3.dp)
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(3.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(thumbSize)
+                .neuRaised(CircleShape, blur = 6.dp, offset = 2.dp)
+                .background(if (checked) Neu.Accent else Neu.Background, CircleShape),
         )
     }
 }

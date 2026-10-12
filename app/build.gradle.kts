@@ -67,6 +67,8 @@ android {
 
     buildFeatures {
         compose = true
+        // 设置页的「关于」要读 BuildConfig.VERSION_NAME
+        buildConfig = true
     }
 
     packaging {

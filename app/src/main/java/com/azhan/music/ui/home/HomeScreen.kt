@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -68,6 +69,7 @@ fun HomeScreen(
     app: MusicApp,
     onOpenPlaylist: (String) -> Unit,
     onOpenFavorites: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenPlayer: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -126,6 +128,13 @@ fun HomeScreen(
                     onClick = { directoryPicker.launch(null) },
                     contentDescription = "添加音乐目录",
                     tint = Neu.Accent,
+                )
+                Spacer(Modifier.width(6.dp))
+                NeuIconButton(
+                    icon = Icons.Filled.Settings,
+                    onClick = onOpenSettings,
+                    contentDescription = "设置",
+                    tint = Neu.TextSecondary,
                 )
             }
 

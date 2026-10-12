@@ -41,9 +41,26 @@ class LibraryRepository(
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
     val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
 
+    /** 全局偏好（设置页）。 */
+    private val _prefs = MutableStateFlow(AppPrefs())
+    val prefs: StateFlow<AppPrefs> = _prefs.asStateFlow()
+
     suspend fun load() {
         _playlists.value = store.playlists.first()
         _favorites.value = store.favorites.first()
+        _prefs.value = store.appPrefs.first()
+    }
+
+    suspend fun updatePrefs(transform: (AppPrefs) -> AppPrefs) {
+        val next = transform(_prefs.value)
+        _prefs.value = next
+        withContext(Dispatchers.IO) { store.saveAppPrefs(next) }
+    }
+
+    /** 记住最后播放的歌，供「启动时恢复上次播放」用。歌没变就不写盘。 */
+    suspend fun rememberLastSong(songId: String) {
+        if (_prefs.value.lastSongId == songId) return
+        updatePrefs { it.copy(lastSongId = songId) }
     }
 
     fun isFavorite(songId: String?): Boolean =
@@ -133,6 +150,25 @@ class LibraryRepository(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
         }
+    }
+
+    /** 重新扫描所有目录，返回扫到的歌曲总数。 */
+    suspend fun rescanAll(): Int {
+        var total = 0
+        _playlists.value.toList().forEach { playlist ->
+            when (val result = rescan(playlist.id)) {
+                is AddResult.Rescanned -> total += result.count
+                is AddResult.Added -> total += result.count
+                is AddResult.Failed -> Unit
+            }
+        }
+        return total
+    }
+
+    suspend fun clearFavorites() {
+        if (_favorites.value.isEmpty()) return
+        _favorites.value = emptySet()
+        withContext(Dispatchers.IO) { store.saveFavorites(emptySet()) }
     }
 
     private suspend fun scanTree(playlistId: String, treeUri: Uri, name: String): List<Song> {

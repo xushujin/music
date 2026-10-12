@@ -49,6 +49,18 @@
 - 上一首：播放超过 3 秒时先回到本曲开头（主流播放器习惯）
 - 音频焦点处理、拔耳机自动暂停、本地唤醒锁
 
+### 5. 设置与关于
+
+首页右上角齿轮进入。分四块：
+
+- **播放**：启动时恢复上次播放（**只装载、不自动播放**，避免一开 App 就出声）
+- **定时退出**：到点动作（退出应用 / 仅暂停）
+- **数据**：重新扫描全部目录 / 清空收藏 / 重置歌词时间微调
+- **关于**：版本号（读 `BuildConfig.VERSION_NAME`）、一句话说明、Apache-2.0 许可与源码链接
+
+> **故意没有「深色 / 浅色」切换**：拟态风格依赖"元素与背景同色、靠阴影分层"，
+> 深色背景上阴影会糊成一片，所以 App 固定浅色（见「五、设计取舍」）。
+
 ---
 
 ## 二、工程结构
@@ -71,8 +83,8 @@ music/
         ├── MusicApp.kt                 # 手写依赖容器（唯一的"注入"处）
         ├── MainActivity.kt
         ├── data/
-        │   ├── Models.kt               # Song / Playlist / LyricPrefs
-        │   ├── MusicStore.kt           # DataStore + JSON 持久化（3 个 key 分开存）
+        │   ├── Models.kt               # Song / Playlist / LyricPrefs / AppPrefs
+        │   ├── MusicStore.kt           # DataStore + JSON 持久化（4 个 key 分开存）
         │   ├── MusicScanner.kt         # SAF 递归遍历 + 按文件名配对歌词
         │   ├── LibraryRepository.kt    # 曲库状态机（StateFlow）+ 收藏
         │   └── LyricPrefsState.kt      # 歌词偏好（Compose state，写入去抖）
@@ -84,12 +96,13 @@ music/
         │   ├── PlaybackService.kt      # MediaSessionService
         │   └── PlaybackController.kt   # MediaController → Compose state + 定时退出
         └── ui/
-            ├── AppRoot.kt              # 导航（5 个页面，字符串路由）
+            ├── AppRoot.kt              # 导航（6 个页面，字符串路由）+ 启动恢复上次播放
             ├── theme/Theme.kt          # 固定浅色拟态主题
-            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSlider / 凸起凹陷）
+            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSwitch / NeuSegmented / NeuSlider）
             ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow
-            ├── home/HomeScreen.kt      # 目录列表 + 收藏入口
+            ├── home/HomeScreen.kt      # 目录列表 + 收藏入口 + 设置入口
             ├── favorites/FavoritesScreen.kt  # 收藏列表
+            ├── settings/SettingsScreen.kt    # 全局配置 + 关于
             ├── playlist/PlaylistScreen.kt
             ├── player/PlayerScreen.kt  # 播放页：文件名 + 整块歌词 + 定时退出面板（无封面占位）
             └── lyrics/LyricsScreen.kt  # 全屏歌词 + 控制面板
@@ -117,6 +130,7 @@ music/
 | GitHub Actions 自动编译 | **打 tag 才触发** `assembleRelease`；产物挂到 GitHub Release + 上传为 Artifact |
 | 新增定时退出 | 顶栏入口；预设 15/30/60/90/120 分钟 + 自定义；到点停止播放并退出 App |
 | 新增收藏列表 | 播放页/歌曲行红心；首页收藏入口；收藏列表可作播放队列；失效收藏自动隐藏 |
+| 新增设置页 | 全局配置（恢复上次播放 / 定时退出到点动作 / 数据清理）+ 关于；顶栏齿轮进入 |
 
 > 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
@@ -199,7 +213,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.1.0-release.apk` | **2.51 MB** | 1 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.1.0-release.apk` | **2.52 MB** | 1 |
 | debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.1.0-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
@@ -345,7 +359,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 `material-icons-extended` 已被 androidx 冻结在 1.7.8（模块已从主干移除，但 Compose BOM 仍 pin 住这个版本，可正常解析）。
 
-它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.7 MB / 15 个 dex，release 包 **2.51 MB / 1 个 dex**。
+它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.7 MB / 15 个 dex，release 包 **2.52 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
 
 ---

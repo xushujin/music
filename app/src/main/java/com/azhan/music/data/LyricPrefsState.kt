@@ -53,6 +53,12 @@ class LyricPrefsState(private val store: MusicStore) {
         save()
     }
 
+    /** 清空所有歌曲的时间微调（颜色与字号保留）。 */
+    fun resetAllOffsets() {
+        offsets = emptyMap()
+        save()
+    }
+
     fun updateColor(value: Long) {
         color = value
         saveDebounced()
