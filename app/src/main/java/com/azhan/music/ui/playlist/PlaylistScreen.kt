@@ -1,8 +1,6 @@
 package com.azhan.music.ui.playlist
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,11 +18,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -47,14 +41,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azhan.music.MusicApp
 import com.azhan.music.data.AddResult
-import com.azhan.music.data.Song
+import com.azhan.music.ui.common.FavoriteButton
 import com.azhan.music.ui.common.MiniPlayerBar
-import com.azhan.music.ui.common.formatTime
+import com.azhan.music.ui.common.SongRow
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuBox
 import com.azhan.music.ui.theme.NeuIconButton
-import com.azhan.music.ui.theme.NeuShapes
-import com.azhan.music.ui.theme.neuInset
 import kotlinx.coroutines.launch
 
 @Composable
@@ -67,6 +59,7 @@ fun PlaylistScreen(
     val scope = rememberCoroutineScope()
     val player = app.player
     val playlists by app.library.playlists.collectAsStateWithLifecycle()
+    val favorites by app.library.favorites.collectAsStateWithLifecycle()
     val playlist = remember(playlists, playlistId) { playlists.firstOrNull { it.id == playlistId } }
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -220,6 +213,11 @@ fun PlaylistScreen(
                                 player.play(playlist.songs, index)
                                 onOpenPlayer()
                             },
+                            trailing = {
+                                FavoriteButton(isFavorite = song.id in favorites) {
+                                    scope.launch { app.library.toggleFavorite(song.id) }
+                                }
+                            },
                         )
                     }
                 }
@@ -230,88 +228,3 @@ fun PlaylistScreen(
     }
 }
 
-@Composable
-private fun SongRow(
-    song: Song,
-    index: Int,
-    isCurrent: Boolean,
-    isPlaying: Boolean,
-    onClick: () -> Unit,
-) {
-    // 正在播放的那一行做成凹陷态，其他行保持平坦（列表里每个都做阴影会很重）
-    val shape = NeuShapes.chip
-    val decorated = if (isCurrent) {
-        Modifier
-            .background(Neu.Background, shape)
-            .neuInset(shape, stroke = 2.5.dp)
-    } else {
-        Modifier
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(decorated)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.width(30.dp), contentAlignment = Alignment.Center) {
-            if (isCurrent) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Filled.GraphicEq else Icons.Filled.VolumeUp,
-                    contentDescription = null,
-                    tint = Neu.Accent,
-                    modifier = Modifier.size(19.dp),
-                )
-            } else {
-                Text(
-                    text = "${index + 1}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Neu.TextSecondary,
-                )
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isCurrent) Neu.Accent else Neu.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = song.displayArtist,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Neu.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (song.lrcUri != null) {
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "歌词",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Neu.Accent,
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.width(10.dp))
-        if (song.durationMs > 0) {
-            Text(
-                text = formatTime(song.durationMs),
-                style = MaterialTheme.typography.labelMedium,
-                color = Neu.TextSecondary,
-            )
-        }
-    }
-}

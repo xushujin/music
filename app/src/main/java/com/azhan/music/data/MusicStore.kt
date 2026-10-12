@@ -28,8 +28,10 @@ class MusicStore(context: Context) {
 
     private val playlistsKey = stringPreferencesKey("playlists")
     private val lyricKey = stringPreferencesKey("lyric_prefs")
+    private val favoritesKey = stringPreferencesKey("favorites")
 
     private val playlistsSerializer = ListSerializer(Playlist.serializer())
+    private val favoritesSerializer = ListSerializer(String.serializer())
 
     val playlists: Flow<List<Playlist>> = appContext.dataStore.data.map { prefs ->
         prefs[playlistsKey]?.let {
@@ -43,8 +45,21 @@ class MusicStore(context: Context) {
         } ?: LyricPrefs()
     }
 
+    /** 收藏的歌曲 id 集合。用 Set 语义（无序、去重），落盘时转成列表。 */
+    val favorites: Flow<Set<String>> = appContext.dataStore.data.map { prefs ->
+        prefs[favoritesKey]?.let {
+            runCatching { json.decodeFromString(favoritesSerializer, it) }.getOrNull()
+        }?.toSet() ?: emptySet()
+    }
+
     suspend fun savePlaylists(list: List<Playlist>) {
         appContext.dataStore.edit { it[playlistsKey] = json.encodeToString(playlistsSerializer, list) }
+    }
+
+    suspend fun saveFavorites(ids: Set<String>) {
+        appContext.dataStore.edit {
+            it[favoritesKey] = json.encodeToString(favoritesSerializer, ids.toList())
+        }
     }
 
     suspend fun saveLyricPrefs(prefs: LyricPrefs) {

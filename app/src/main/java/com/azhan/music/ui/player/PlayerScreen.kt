@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.azhan.music.MusicApp
+import com.azhan.music.ui.common.FavoriteButton
 import com.azhan.music.ui.common.findSong
 import com.azhan.music.ui.common.formatTime
 import com.azhan.music.ui.common.rememberLyrics
@@ -67,6 +69,7 @@ import com.azhan.music.ui.theme.NeuShapes
 import com.azhan.music.ui.theme.NeuSlider
 import com.azhan.music.ui.theme.neuInset
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** 定时退出的预设时长（分钟）。 */
 private val SLEEP_PRESETS = listOf(15, 30, 60, 90, 120)
@@ -81,8 +84,10 @@ fun PlayerScreen(
     onBack: () -> Unit,
     onOpenLyrics: () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     val player = app.player
     val playlists by app.library.playlists.collectAsStateWithLifecycle()
+    val favorites by app.library.favorites.collectAsStateWithLifecycle()
     val song = remember(playlists, player.currentSongId) { playlists.findSong(player.currentSongId) }
     val lyrics = rememberLyrics(app, song)
 
@@ -156,6 +161,13 @@ fun PlayerScreen(
                         color = Neu.TextSecondary,
                         modifier = Modifier.weight(1f),
                     )
+                    FavoriteButton(
+                        isFavorite = song.id in favorites,
+                        size = 44.dp,
+                    ) {
+                        scope.launch { app.library.toggleFavorite(song.id) }
+                    }
+                    Spacer(Modifier.width(6.dp))
                     SleepTimerButton(
                         remainingMs = player.sleepRemainingMs,
                         onClick = { timerPanelVisible = true },

@@ -17,7 +17,15 @@
 - 手动「重新扫描」重新遍历目录（不读音频标签，纯列目录，速度取决于文件数）
 - **不读任何音频标签**：歌曲标题 = 文件名（去扩展名），艺术家/专辑留空，时长由播放器播放时实时提供
 
-### 2. 歌词
+### 2. 收藏
+
+- 播放页顶栏、以及歌曲列表的每一行都有红心，点一下加入 / 移出收藏
+- 首页顶部有「收藏」入口（带数量），点进去是收藏列表
+- 收藏列表**本身就是一个播放队列**：点任意一首，接着放的就是收藏里的歌
+- 收藏只存歌曲 id，所以目录被移除后失效的收藏会**自动从列表里消失**，不会留下死条目
+- 排序与目录内一致（按标题）
+
+### 3. 歌词
 
 - 识别同名 `.lrc`（`song.mp3` ↔ `song.lrc`）
 - 编码自动识别：UTF-8（含 BOM）/ UTF-16 / **GBK 回退**（中文歌词乱码问题的根因）
@@ -31,7 +39,7 @@
 - 歌词是后补的？**进入全屏歌词就会自动重读一次** `.lrc`，不用重扫目录；
   没找到歌词时，页面中间的提示里也有「重新加载歌词」按钮
 
-### 3. 播放
+### 4. 播放
 
 - Media3 ExoPlayer + MediaSessionService：**后台播放 + 系统通知栏控制 + 锁屏控制**（media3 自带，无需手写通知）
   - 注：App 不申请通知权限，Android 13+ 上通知默认不显示，需到系统设置手动打开（见 v1.2 实测）；后台播放本身不受影响
@@ -64,9 +72,9 @@ music/
         ├── MainActivity.kt
         ├── data/
         │   ├── Models.kt               # Song / Playlist / LyricPrefs
-        │   ├── MusicStore.kt           # DataStore + JSON 持久化（2 个 key 分开存）
+        │   ├── MusicStore.kt           # DataStore + JSON 持久化（3 个 key 分开存）
         │   ├── MusicScanner.kt         # SAF 递归遍历 + 按文件名配对歌词
-        │   ├── LibraryRepository.kt    # 曲库状态机（StateFlow）
+        │   ├── LibraryRepository.kt    # 曲库状态机（StateFlow）+ 收藏
         │   └── LyricPrefsState.kt      # 歌词偏好（Compose state，写入去抖）
         ├── lyrics/
         │   ├── LrcParser.kt            # LRC 解析 + 双语合并
@@ -76,11 +84,12 @@ music/
         │   ├── PlaybackService.kt      # MediaSessionService
         │   └── PlaybackController.kt   # MediaController → Compose state + 定时退出
         └── ui/
-            ├── AppRoot.kt              # 导航（4 个页面，字符串路由）
+            ├── AppRoot.kt              # 导航（5 个页面，字符串路由）
             ├── theme/Theme.kt          # 固定浅色拟态主题
             ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSlider / 凸起凹陷）
-            ├── common/                 # 时间格式化、歌词记忆、迷你播放条
-            ├── home/HomeScreen.kt      # 播放列表（目录）列表
+            ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow
+            ├── home/HomeScreen.kt      # 目录列表 + 收藏入口
+            ├── favorites/FavoritesScreen.kt  # 收藏列表
             ├── playlist/PlaylistScreen.kt
             ├── player/PlayerScreen.kt  # 播放页：文件名 + 整块歌词 + 定时退出面板（无封面占位）
             └── lyrics/LyricsScreen.kt  # 全屏歌词 + 控制面板
@@ -90,7 +99,7 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.0.0` / `versionCode 1`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.1.0` / `versionCode 2`）。
 
 ### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
 
@@ -107,6 +116,7 @@ music/
 | 移除颜色滑条 | 只保留 8 个预设色块（原滑条在白色预设下位置与实际颜色不符） |
 | GitHub Actions 自动编译 | **打 tag 才触发** `assembleRelease`；产物挂到 GitHub Release + 上传为 Artifact |
 | 新增定时退出 | 顶栏入口；预设 15/30/60/90/120 分钟 + 自定义；到点停止播放并退出 App |
+| 新增收藏列表 | 播放页/歌曲行红心；首页收藏入口；收藏列表可作播放队列；失效收藏自动隐藏 |
 
 > 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
@@ -123,11 +133,7 @@ AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用
 
 ### v1.1 · 拟态（Neumorphism）风格 + 全屏歌词面板默认收起
 
-**在 Android 17 模拟器上重装验证通过。** 新版 APK 路径同下：
-
-```
-dist/轻响-LightMusic-1.0.0-release.apk   2.49 MB  ← 装机用这个
-```
+**在 Android 17 模拟器上重装验证通过。**（装机包路径与体积见下方「三、构建」，此处不再重复。）
 
 | 变更 | 验证 |
 |---|---|
@@ -193,15 +199,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.0.0-release.apk` | **2.49 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.0.0-debug.apk` | 23.6 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.1.0-release.apk` | **2.51 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.1.0-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.0.0-release.apk
+adb install -r dist/轻响-LightMusic-1.1.0-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -225,15 +231,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.0.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.1.0.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.0.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.1.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.0.0          # 需以 v 开头，如 v1.0.0 / v1.0.1 / v2.0.0
-git push origin v1.0.0  # 推上去即触发编译
+git tag v1.1.0          # 需以 v 开头，如 v1.1.0 / v1.0.1 / v2.0.0
+git push origin v1.1.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -307,7 +313,7 @@ git push origin v1.0.0  # 推上去即触发编译
 - 不支持内嵌歌词（仅 `.lrc` 外挂文件）、不支持逐字歌词（`.krc` / `.qrc`）
 - **不读任何音频标签**：没有专辑封面、艺术家、专辑、时长（列表里播放前不显示时长）；
   早期版本读标签会明显拖慢扫描，且标签与文件名不一致时歌词配对容易困惑，故有意省掉
-- 没有搜索、没有收藏、没有排序方式切换
+- 没有搜索、没有排序方式切换
 - 歌词偏移按文件 uri 记忆，歌曲文件被移动/改名后会丢失
 - 颜色只有 8 个预设，不能自定义任意色相（原色相滑条因定位不准已移除）
 - 通知栏控制在 Android 13+ 默认不可用（不申请通知权限，需到系统设置手动打开，见 v1.2）
@@ -332,7 +338,7 @@ git push origin v1.0.0  # 推上去即触发编译
 
 `material-icons-extended` 已被 androidx 冻结在 1.7.8（模块已从主干移除，但 Compose BOM 仍 pin 住这个版本，可正常解析）。
 
-它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.6 MB / 15 个 dex，release 包 **2.49 MB / 1 个 dex**。
+它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.7 MB / 15 个 dex，release 包 **2.51 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
 
 ---

@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.azhan.music.MusicApp
+import com.azhan.music.ui.favorites.FavoritesScreen
 import com.azhan.music.ui.home.HomeScreen
 import com.azhan.music.ui.lyrics.LyricsScreen
 import com.azhan.music.ui.player.PlayerScreen
@@ -17,6 +18,7 @@ import com.azhan.music.ui.playlist.PlaylistScreen
 object Routes {
     const val HOME = "home"
     const val PLAYLIST = "playlist"
+    const val FAVORITES = "favorites"
     const val PLAYER = "player"
     const val LYRICS = "lyrics"
 }
@@ -35,6 +37,14 @@ fun AppRoot(app: MusicApp) {
                     selectedPlaylistId = id
                     navController.navigate(Routes.PLAYLIST) { launchSingleTop = true }
                 },
+                onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
+                onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.FAVORITES) {
+            FavoritesScreen(
+                app = app,
+                onBack = { navController.popBackStack() },
                 onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
             )
         }

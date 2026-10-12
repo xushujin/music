@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -66,12 +67,16 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     app: MusicApp,
     onOpenPlaylist: (String) -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenPlayer: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val playlists by app.library.playlists.collectAsStateWithLifecycle()
+    val favorites by app.library.favorites.collectAsStateWithLifecycle()
     val scanning by app.library.scanning.collectAsStateWithLifecycle()
+    // 用「能解析出来的歌」计数，而不是收藏 id 数——目录被移除后 id 会失效
+    val favoriteCount = remember(playlists, favorites) { app.library.favoriteSongs().size }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val directoryPicker = rememberLauncherForActivityResult(
@@ -141,6 +146,9 @@ fun HomeScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
+                        item(key = "favorites") {
+                            FavoritesCard(count = favoriteCount, onClick = onOpenFavorites)
+                        }
                         items(playlists, key = { it.id }) { playlist ->
                             PlaylistCard(
                                 playlist = playlist,
@@ -176,6 +184,60 @@ private fun AddResult.toMessage(): String = when (this) {
     is AddResult.Added -> "已添加「$name」，共 $count 首"
     is AddResult.Rescanned -> "已更新「$name」，共 $count 首"
     is AddResult.Failed -> "失败：$message"
+}
+
+/** 首页顶部的「收藏」入口，样式与目录卡片一致，只是没有右侧菜单。 */
+@Composable
+private fun FavoritesCard(count: Int, onClick: () -> Unit) {
+    NeuBox(
+        modifier = Modifier.fillMaxWidth(),
+        shape = NeuShapes.card,
+        color = Neu.Background,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Neu.Background, NeuShapes.pill)
+                    .neuInset(NeuShapes.pill, stroke = 2.5.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = Neu.Accent,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "收藏",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Neu.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = "$count 首",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Neu.TextSecondary,
+                )
+            }
+        }
+    }
 }
 
 @Composable

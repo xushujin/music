@@ -37,8 +37,41 @@ class LibraryRepository(
     private val _scanning = MutableStateFlow<ScanState?>(null)
     val scanning: StateFlow<ScanState?> = _scanning.asStateFlow()
 
+    /** 收藏的歌曲 id。只存 id，取歌时再去曲库里查，避免同一首歌存两份。 */
+    private val _favorites = MutableStateFlow<Set<String>>(emptySet())
+    val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+
     suspend fun load() {
         _playlists.value = store.playlists.first()
+        _favorites.value = store.favorites.first()
+    }
+
+    fun isFavorite(songId: String?): Boolean =
+        songId != null && _favorites.value.contains(songId)
+
+    suspend fun toggleFavorite(songId: String) {
+        val next = _favorites.value.toMutableSet().apply {
+            if (!add(songId)) remove(songId)
+        }
+        _favorites.value = next
+        withContext(Dispatchers.IO) { store.saveFavorites(next) }
+    }
+
+    /**
+     * 收藏列表：按标题排序（和目录内一致）。
+     * 只保留当前曲库里还在的歌 —— 目录被移除后，收藏里的 id 会自然失效被忽略。
+     */
+    fun favoriteSongs(): List<Song> {
+        val ids = _favorites.value
+        if (ids.isEmpty()) return emptyList()
+        val collator = Collator.getInstance(Locale.CHINA)
+        return _playlists.value
+            .asSequence()
+            .flatMap { it.songs.asSequence() }
+            .filter { it.id in ids }
+            .distinctBy { it.id }
+            .sortedWith(Comparator { a, b -> collator.compare(a.title, b.title) })
+            .toList()
     }
 
     fun playlist(id: String?): Playlist? =
