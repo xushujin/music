@@ -156,12 +156,6 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = Neu.TextSecondary,
                 )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = "基于 Apache-2.0 开源",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Neu.TextSecondary,
-                )
             }
 
             Spacer(Modifier.height(28.dp))
