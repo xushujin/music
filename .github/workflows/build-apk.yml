@@ -24,6 +24,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # 放到 job 级：下面的 if 需要用它判断（if 里不能直接用 secrets 上下文）。
+      # 未配置时是空字符串，走 debug keystore 兜底。
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -62,7 +66,6 @@ jobs:
       #     APK 一样能装，但每次 CI 密钥不同，覆盖安装前需先卸载旧包
       - name: Prepare signing key
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -73,18 +76,25 @@ jobs:
             echo "KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-lightmusic}" >> "$GITHUB_ENV"
             echo "KEY_ALIAS=${KEY_ALIAS:-lightmusic}" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=${KEY_PASSWORD:-lightmusic}" >> "$GITHUB_ENV"
-            echo "使用仓库 Secret 里的 keystore 签名"
+            echo "签名：使用仓库 Secret 里的 keystore（与本地构建同一把钥匙）"
           else
             mkdir -p "$HOME/.android"
-            keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+            if [ -f "$HOME/.android/debug.keystore" ]; then
+              echo "复用 runner 上已有的 debug keystore"
+            else
+              keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
+                -storepass android -alias androiddebugkey -keypass android \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
             echo "KEYSTORE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
             echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
             echo "KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
-            echo "未配置 KEYSTORE_BASE64，回退用 debug keystore 签名"
+            # 这个兜底签名每次构建都是新钥匙，产出的 APK 与用别的密钥签名的安装
+            # 无法互相覆盖（装新版会报 INSTALL_FAILED_UPDATE_INCOMPATIBLE）。
+            # 想固定签名就在仓库 Settings → Secrets → Actions 配 KEYSTORE_BASE64。
+            echo "::warning title=未配置签名密钥::未设置 KEYSTORE_BASE64，本次用临时 debug keystore 签名。这样产出的 APK 无法覆盖安装用其它密钥签名的版本（会报签名冲突），反之亦然。要固定签名请配置 KEYSTORE_BASE64。"
           fi
 
       - name: Make gradlew executable
@@ -92,6 +102,13 @@ jobs:
 
       - name: Build release APK
         run: ./gradlew assembleRelease --no-daemon
+
+      # 把签名指纹打进日志：以后出现「签名冲突」时，直接对比这里的指纹就能定位
+      - name: Show APK signer
+        run: |
+          APK="$(ls app/build/outputs/apk/release/*.apk | head -1)"
+          echo "产物: $APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK" | head -4
 
       - name: Upload APK (artifact)
         uses: actions/upload-artifact@v7
