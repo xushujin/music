@@ -56,7 +56,7 @@
 - **播放**：启动时恢复上次播放（**只装载、不自动播放**，避免一开 App 就出声）
 - **定时退出**：到点动作（退出应用 / 仅暂停）
 - **数据**：重新扫描全部目录 / 清空收藏 / 重置歌词时间微调
-- **关于**：版本号（读 `BuildConfig.VERSION_NAME`）、一句话说明、Apache-2.0 许可与源码链接
+- **关于**：版本号（读 `BuildConfig.VERSION_NAME`）、一句话说明、Apache-2.0 许可
 
 > **故意没有「深色 / 浅色」切换**：拟态风格依赖"元素与背景同色、靠阴影分层"，
 > 深色背景上阴影会糊成一片，所以 App 固定浅色（见「五、设计取舍」）。
@@ -112,7 +112,7 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.2.0` / `versionCode 3`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.2.1` / `versionCode 4`）。
 
 ### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
 
@@ -213,15 +213,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.2.0-release.apk` | **2.52 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.2.0-debug.apk` | 23.7 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.2.1-release.apk` | **2.52 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.2.1-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.2.0-release.apk
+adb install -r dist/轻响-LightMusic-1.2.1-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -245,15 +245,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.2.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.2.1.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.2.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.2.1.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.2.0          # 需以 v 开头，如 v1.2.0 / v1.0.1 / v2.0.0
-git push origin v1.2.0  # 推上去即触发编译
+git tag v1.2.1          # 需以 v 开头，如 v1.2.1 / v1.0.1 / v2.0.0
+git push origin v1.2.1  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。

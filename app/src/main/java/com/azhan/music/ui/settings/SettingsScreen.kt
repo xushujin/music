@@ -1,13 +1,7 @@
 package com.azhan.music.ui.settings
 
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +21,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,8 +40,6 @@ import com.azhan.music.ui.theme.NeuSegmented
 import com.azhan.music.ui.theme.NeuShapes
 import com.azhan.music.ui.theme.NeuSwitch
 import kotlinx.coroutines.launch
-
-private const val SOURCE_URL = "https://github.com/xushujin/music"
 
 /**
  * 设置页：全局配置 + 关于软件。
@@ -167,20 +158,9 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "基于 Apache-2.0 开源 · 点此查看源码",
+                    text = "基于 Apache-2.0 开源",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Neu.Accent,
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }
-                    },
+                    color = Neu.TextSecondary,
                 )
             }
 
