@@ -4,11 +4,14 @@ name: Build Release APK
 #   git tag v1.0 && git push origin v1.0
 # 也可以在 Actions 页面手动触发（workflow_dispatch）。
 #
-# 两个踩过的坑（别再犯）：
+# 踩过的坑（别再犯）：
 # 1) GitHub 的 if: 表达式里**不能**用 secrets 上下文（会报
-#    "Unrecognized named-value: 'secrets'"）。所以「有没有配签名密钥」的判断
-#    放到 shell 里做，secrets 只通过 env 注入。
-# 2) 不用 android-actions/setup-android：它在 cmdline-tools 16.0 上会去装早已
+#    "Unrecognized named-value: 'secrets'"）。所以密钥放到 job 级 env，
+#    if 里判断 env.KEYSTORE_BASE64。
+# 2) 签名必须与本地同一把钥匙：**不用临时密钥兜底**。没配 KEYSTORE_BASE64 就直接失败，
+#    免得悄悄产出一个装不上去的包 —— 不同签名的 APK 无法互相覆盖
+#    （会报 INSTALL_FAILED_UPDATE_INCOMPATIBLE）。
+# 3) 不用 android-actions/setup-android：它在 cmdline-tools 16.0 上会去装早已
 #    下线的 legacy "tools" 包，`sdkmanager tools` 直接 exit code 1 让整个 job 挂掉。
 #    GitHub 的 ubuntu runner 本来就预装了完整 Android SDK，直接用即可。
 on:
@@ -26,11 +29,19 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # 放到 job 级：下面的 if 需要用它判断（if 里不能直接用 secrets 上下文）。
-      # 未配置时是空字符串，走 debug keystore 兜底。
+      # 未配置时是空字符串 → 直接失败，不再用临时密钥兜底。
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # 签名密钥是**必需**的：CI 必须与本地用同一把钥匙，否则升级安装会报签名冲突。
+      # 没配就直接失败 —— 放在最前面，早点报错，也不用白等装 SDK。
+      - name: Require signing key
+        if: env.KEYSTORE_BASE64 == ''
+        run: |
+          echo "::error title=缺少 KEYSTORE_BASE64::未配置签名密钥。请在仓库 Settings → Secrets and variables → Actions 添加 KEYSTORE_BASE64，值为 base64 -i keystore/lightmusic-release.jks 的输出。CI 必须与本地用同一把钥匙，否则产出的 APK 无法覆盖安装。"
+          exit 1
 
       - name: Set up JDK 21
         uses: actions/setup-java@v6
@@ -58,44 +69,18 @@ jobs:
           "$SDKMANAGER" --install "platform-tools" "platforms;android-37.0" "build-tools;36.0.0"
           "$SDKMANAGER" --list_installed
 
-      # 签名密钥决定 APK 能否安装，两条路径：
-      #   方式 A（推荐）：仓库 Settings → Secrets → Actions 配 KEYSTORE_BASE64
-      #     （本地执行 base64 -i keystore/lightmusic-release.jks 得到）
-      #     用与你本地同一个 keystore 签名 → 版本更新可直接覆盖安装
-      #   方式 B（零配置兜底）：没配就自动生成 Android debug keystore 签名
-      #     APK 一样能装，但每次 CI 密钥不同，覆盖安装前需先卸载旧包
       - name: Prepare signing key
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/release-key.jks"
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/release-key.jks" >> "$GITHUB_ENV"
-            echo "KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-lightmusic}" >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=${KEY_ALIAS:-lightmusic}" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=${KEY_PASSWORD:-lightmusic}" >> "$GITHUB_ENV"
-            echo "签名：使用仓库 Secret 里的 keystore（与本地构建同一把钥匙）"
-          else
-            mkdir -p "$HOME/.android"
-            if [ -f "$HOME/.android/debug.keystore" ]; then
-              echo "复用 runner 上已有的 debug keystore"
-            else
-              keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
-                -storepass android -alias androiddebugkey -keypass android \
-                -keyalg RSA -keysize 2048 -validity 10000 \
-                -dname "CN=Android Debug,O=Android,C=US"
-            fi
-            echo "KEYSTORE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
-            echo "KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=android" >> "$GITHUB_ENV"
-            # 这个兜底签名每次构建都是新钥匙，产出的 APK 与用别的密钥签名的安装
-            # 无法互相覆盖（装新版会报 INSTALL_FAILED_UPDATE_INCOMPATIBLE）。
-            # 想固定签名就在仓库 Settings → Secrets → Actions 配 KEYSTORE_BASE64。
-            echo "::warning title=未配置签名密钥::未设置 KEYSTORE_BASE64，本次用临时 debug keystore 签名。这样产出的 APK 无法覆盖安装用其它密钥签名的版本（会报签名冲突），反之亦然。要固定签名请配置 KEYSTORE_BASE64。"
-          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/release-key.jks"
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/release-key.jks" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-lightmusic}" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=${KEY_ALIAS:-lightmusic}" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=${KEY_PASSWORD:-lightmusic}" >> "$GITHUB_ENV"
+          echo "签名：使用仓库 Secret 里的 keystore（与本地构建同一把钥匙）"
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew

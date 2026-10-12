@@ -243,16 +243,23 @@ git push origin v1.1.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
-> 另注：GitHub 的 `if:` 表达式里不能用 `secrets` 上下文，所以工作流把「有没有配密钥」
-> 的判断放在 shell 里做，secrets 只通过 `env` 注入。
+> 另注：GitHub 的 `if:` 表达式里不能用 `secrets` 上下文，所以密钥放在 **job 级 `env`**，
+> `if` 里判断 `env.KEYSTORE_BASE64`。
 
-签名有两种路径（决定 APK 能否安装）：
+**签名密钥是必需的**：CI 与本地必须用**同一把钥匙**，否则产出的 APK 无法覆盖安装
+（不同签名的 APK 不能互相覆盖，会报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`）。
 
-- **方式 A（推荐）**：仓库 `Settings → Secrets → Actions` 加 `KEYSTORE_BASE64`
-  （本地执行 `base64 -i keystore/lightmusic-release.jks` 得到）。
-  APK 用与你本地**同一个** keystore 签名，版本更新可直接覆盖安装。
-- **方式 B（零配置兜底）**：没配密钥时，工作流自动用 Android debug keystore 签名，
-  APK **一样能安装**；但每次 CI 密钥不同，覆盖安装前需先卸载旧包。
+在仓库 `Settings → Secrets and variables → Actions` 添加 `KEYSTORE_BASE64`：
+
+```bash
+base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘到 Secret 里
+```
+
+别名与密码**不用配**（工作流默认用 `lightmusic`，与本地一致）；想显式配可再加
+`KEY_ALIAS` / `KEYSTORE_PASSWORD` / `KEY_PASSWORD`。
+
+**没配 `KEYSTORE_BASE64` 时工作流会直接失败**——不再用临时密钥签一个装不上去的包。
+构建日志里会打印产物的签名指纹（`Show APK signer`），遇到签名冲突对比指纹即可定位。
 
 `app/build.gradle.kts` 的签名来源分三档：
 
