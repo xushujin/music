@@ -48,6 +48,12 @@ data class LyricPrefs(
     val offsets: Map<String, Long> = emptyMap(),
 )
 
+/**
+ * 全局搜索命中的一条：歌 + 它来自哪个目录。
+ * 不落盘，所以不需要 @Serializable。
+ */
+data class SongHit(val song: Song, val playlistName: String)
+
 /** 定时退出倒计时到点后的动作。 */
 @Serializable
 enum class SleepAction { EXIT, PAUSE }

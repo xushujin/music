@@ -15,8 +15,8 @@
 - 递归时在同级目录里自动配对同名 `.lrc`
 - 音频格式：mp3 / m4a / mp4a / aac / flac / wav / wave / ogg / oga / opus / wma / ape / aif / aiff / mka / amr / 3gp / dsf / dff
 - 手动「重新扫描」重新遍历目录（不读音频标签，纯列目录，速度取决于文件数）
-- **按文件名搜索**：列表页顶部有搜索框，输入即过滤（忽略大小写），标题栏显示「命中数 / 总数」；
-  搜索状态下点歌，**播放队列就是当前看到的这些歌**。目录列表和收藏列表都有
+- **全局搜索**：首页顶栏的放大镜进入，一次搜遍**所有目录**的文件名（忽略大小写）；
+  结果按标题排序，并标出每首歌**来自哪个目录**；点歌时队列 = 当前搜索结果
 - **不读任何音频标签**：歌曲标题 = 文件名（去扩展名），艺术家/专辑留空，时长由播放器播放时实时提供
 
 ### 2. 收藏
@@ -98,12 +98,13 @@ music/
         │   ├── PlaybackService.kt      # MediaSessionService
         │   └── PlaybackController.kt   # MediaController → Compose state + 定时退出
         └── ui/
-            ├── AppRoot.kt              # 导航（6 个页面，字符串路由）+ 启动恢复上次播放
+            ├── AppRoot.kt              # 导航（7 个页面，字符串路由）+ 启动恢复上次播放
             ├── theme/Theme.kt          # 固定浅色拟态主题
             ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSwitch / NeuSegmented / NeuSlider）
             ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow、搜索框
-            ├── home/HomeScreen.kt      # 目录列表 + 收藏入口 + 设置入口
+            ├── home/HomeScreen.kt      # 目录列表 + 收藏 / 搜索 / 设置入口
             ├── favorites/FavoritesScreen.kt  # 收藏列表
+            ├── search/SearchScreen.kt        # 全局搜索（跨所有目录）
             ├── settings/SettingsScreen.kt    # 全局配置 + 关于
             ├── playlist/PlaylistScreen.kt
             ├── player/PlayerScreen.kt  # 播放页：文件名 + 整块歌词 + 定时退出面板（无封面占位）
@@ -133,7 +134,7 @@ music/
 | 新增定时退出 | 顶栏入口；预设 15/30/60/90/120 分钟 + 自定义；到点停止播放并退出 App |
 | 新增收藏列表 | 播放页/歌曲行红心；首页收藏入口；收藏列表可作播放队列；失效收藏自动隐藏 |
 | 新增设置页 | 全局配置（恢复上次播放 / 定时退出到点动作 / 数据清理）+ 关于；顶栏齿轮进入 |
-| 新增列表搜索 | 目录列表与收藏列表顶部加搜索框，按文件名过滤；搜索时队列 = 当前看到的列表 |
+| 新增全局搜索 | 首页放大镜进入，跨所有目录按文件名搜索；结果标注来源目录；队列 = 搜索结果 |
 
 > 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
@@ -346,7 +347,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 按改动成本从低到高：
 
-1. 跨目录全局搜索（现在是"在哪个列表搜哪个列表"，全局搜要新增一个页面）
+1. 搜索结果按目录分组 / 支持只搜某个目录（现在是一把搜全部，只按文件名匹配）
 2. 播放队列界面（`controller.getMediaItemAt(i)` 直接可用）
 3. 倍速播放（ExoPlayer 原生支持 `setPlaybackSpeed`）
 4. 歌词字体/行距自定义、歌词竖排等纯 UI 增强（不涉及读标签，与现有取舍不冲突）

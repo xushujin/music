@@ -19,12 +19,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.azhan.music.data.Song
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuShapes
 import com.azhan.music.ui.theme.neuInset
@@ -41,7 +43,14 @@ fun NeuSearchBar(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "搜索文件名",
+    autoFocus: Boolean = false,
 ) {
+    val focusRequester = remember { FocusRequester() }
+    // 搜索页进来就聚焦（自动弹键盘）；requestFocus 在节点还没挂上时会抛，兜一下
+    LaunchedEffect(autoFocus) {
+        if (autoFocus) runCatching { focusRequester.requestFocus() }
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -72,7 +81,9 @@ fun NeuSearchBar(
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = Neu.TextPrimary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
             )
         }
 
@@ -96,11 +107,4 @@ fun NeuSearchBar(
             }
         }
     }
-}
-
-/** 按文件名（显示名）过滤，忽略大小写与首尾空格。空查询返回原列表。 */
-fun List<Song>.filterByQuery(query: String): List<Song> {
-    val keyword = query.trim()
-    if (keyword.isEmpty()) return this
-    return filter { it.title.contains(keyword, ignoreCase = true) }
 }

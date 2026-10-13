@@ -17,12 +17,14 @@ import com.azhan.music.ui.home.HomeScreen
 import com.azhan.music.ui.lyrics.LyricsScreen
 import com.azhan.music.ui.player.PlayerScreen
 import com.azhan.music.ui.playlist.PlaylistScreen
+import com.azhan.music.ui.search.SearchScreen
 import com.azhan.music.ui.settings.SettingsScreen
 
 object Routes {
     const val HOME = "home"
     const val PLAYLIST = "playlist"
     const val FAVORITES = "favorites"
+    const val SEARCH = "search"
     const val PLAYER = "player"
     const val LYRICS = "lyrics"
     const val SETTINGS = "settings"
@@ -68,7 +70,15 @@ fun AppRoot(app: MusicApp) {
                     navController.navigate(Routes.PLAYLIST) { launchSingleTop = true }
                 },
                 onOpenFavorites = { navController.navigate(Routes.FAVORITES) { launchSingleTop = true } },
+                onOpenSearch = { navController.navigate(Routes.SEARCH) { launchSingleTop = true } },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.SEARCH) {
+            SearchScreen(
+                app = app,
+                onBack = { navController.popBackStack() },
                 onOpenPlayer = { navController.navigate(Routes.PLAYER) { launchSingleTop = true } },
             )
         }

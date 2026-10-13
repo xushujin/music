@@ -36,6 +36,8 @@ import com.azhan.music.ui.theme.neuInset
 /**
  * 歌曲行。播放列表页和收藏页共用。
  *
+ * @param subtitle 副标题。为 null 时用 song.displayArtist（本 App 不读标签，实际是「未知艺术家」）；
+ *                 全局搜索结果会传所属目录名进来，比「未知艺术家」有用得多。
  * @param trailing 尾部控件插槽（收藏红心之类）。为 null 时不留空位。
  */
 @Composable
@@ -45,6 +47,7 @@ fun SongRow(
     isCurrent: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
+    subtitle: String? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     // 正在播放的那一行做成凹陷态，其他行保持平坦（列表里每个都做阴影会很重）
@@ -98,7 +101,7 @@ fun SongRow(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = song.displayArtist,
+                    text = subtitle ?: song.displayArtist,
                     style = MaterialTheme.typography.bodySmall,
                     color = Neu.TextSecondary,
                     maxLines = 1,

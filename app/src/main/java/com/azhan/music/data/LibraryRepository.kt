@@ -152,6 +152,29 @@ class LibraryRepository(
         }
     }
 
+    /**
+     * 跨目录**全局**搜索：按显示名匹配所有目录里的歌，并带上它所属的目录名。
+     * 空查询返回空列表（不返回全库，免得误触发一个巨大的列表）。
+     */
+    fun searchSongs(query: String): List<SongHit> {
+        val keyword = query.trim()
+        if (keyword.isEmpty()) return emptyList()
+        val collator = Collator.getInstance(Locale.CHINA)
+        return _playlists.value
+            .asSequence()
+            .flatMap { playlist ->
+                playlist.songs.asSequence()
+                    .filter { it.title.contains(keyword, ignoreCase = true) }
+                    .map { SongHit(it, playlist.name) }
+            }
+            .distinctBy { it.song.id }
+            .sortedWith(Comparator { a, b -> collator.compare(a.song.title, b.song.title) })
+            .toList()
+    }
+
+    /** 曲库里的歌曲总数，搜索页空态提示用。 */
+    fun totalSongCount(): Int = _playlists.value.sumOf { it.songs.size }
+
     /** 重新扫描所有目录，返回扫到的歌曲总数。 */
     suspend fun rescanAll(): Int {
         var total = 0
