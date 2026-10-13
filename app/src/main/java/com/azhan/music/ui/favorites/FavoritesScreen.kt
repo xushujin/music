@@ -25,8 +25,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azhan.music.MusicApp
 import com.azhan.music.ui.common.FavoriteButton
 import com.azhan.music.ui.common.MiniPlayerBar
+import com.azhan.music.ui.common.NeuSearchBar
 import com.azhan.music.ui.common.SongRow
+import com.azhan.music.ui.common.filterByQuery
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuIconButton
 import com.azhan.music.ui.theme.NeuShapes
@@ -55,6 +60,8 @@ fun FavoritesScreen(
     val favorites by app.library.favorites.collectAsStateWithLifecycle()
     // 收藏集合或曲库变化时重算（曲库变了，被移除的歌要自动消失）
     val songs = remember(playlists, favorites) { app.library.favoriteSongs() }
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleSongs = remember(songs, query) { songs.filterByQuery(query) }
 
     Scaffold(containerColor = Neu.Background) { padding ->
         Column(
@@ -87,11 +94,24 @@ fun FavoritesScreen(
                         color = Neu.TextPrimary,
                     )
                     Text(
-                        text = "${songs.size} 首",
+                        text = if (query.isBlank()) {
+                            "${songs.size} 首"
+                        } else {
+                            "${visibleSongs.size} / ${songs.size} 首"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = Neu.TextSecondary,
                     )
                 }
+            }
+
+            // 搜索框：有收藏才显示
+            if (songs.isNotEmpty()) {
+                NeuSearchBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                )
             }
 
             if (songs.isEmpty()) {
@@ -135,13 +155,27 @@ fun FavoritesScreen(
                         )
                     }
                 }
+            } else if (visibleSongs.isEmpty()) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "没有匹配「${query.trim()}」的歌曲",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Neu.TextSecondary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                    itemsIndexed(visibleSongs, key = { _, song -> song.id }) { index, song ->
                         val isCurrent = song.id == player.currentSongId
                         SongRow(
                             song = song,
@@ -149,8 +183,8 @@ fun FavoritesScreen(
                             isCurrent = isCurrent,
                             isPlaying = isCurrent && player.isPlaying,
                             onClick = {
-                                // 用收藏列表本身作为播放队列
-                                player.play(songs, index)
+                                // 用当前看到的列表作为播放队列
+                                player.play(visibleSongs, index)
                                 onOpenPlayer()
                             },
                             trailing = {

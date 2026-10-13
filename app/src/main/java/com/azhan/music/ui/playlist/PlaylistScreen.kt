@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +44,9 @@ import com.azhan.music.MusicApp
 import com.azhan.music.data.AddResult
 import com.azhan.music.ui.common.FavoriteButton
 import com.azhan.music.ui.common.MiniPlayerBar
+import com.azhan.music.ui.common.NeuSearchBar
 import com.azhan.music.ui.common.SongRow
+import com.azhan.music.ui.common.filterByQuery
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuBox
 import com.azhan.music.ui.theme.NeuIconButton
@@ -63,6 +66,11 @@ fun PlaylistScreen(
     val playlist = remember(playlists, playlistId) { playlists.firstOrNull { it.id == playlistId } }
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmRemove by remember { mutableStateOf(false) }
+    // 搜索关键词。用 rememberSaveable，转屏后不丢
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleSongs = remember(playlist?.songs, query) {
+        playlist?.songs.orEmpty().filterByQuery(query)
+    }
 
     if (playlist == null) {
         Box(
@@ -147,7 +155,12 @@ fun PlaylistScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "${playlist.songs.size} 首",
+                        // 搜索时显示「命中数 / 总数」，避免误以为歌变少了
+                        text = if (query.isBlank()) {
+                            "${playlist.songs.size} 首"
+                        } else {
+                            "${visibleSongs.size} / ${playlist.songs.size} 首"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = Neu.TextSecondary,
                     )
@@ -182,27 +195,30 @@ fun PlaylistScreen(
                 )
             }
 
-            if (playlist.songs.isEmpty()) {
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "这个目录里没有找到音频文件",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Neu.TextSecondary,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            } else {
-                LazyColumn(
+            // 搜索框：目录里有歌才显示
+            if (playlist.songs.isNotEmpty()) {
+                NeuSearchBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                )
+            }
+
+            when {
+                playlist.songs.isEmpty() -> EmptyHint(
+                    text = "这个目录里没有找到音频文件",
+                    modifier = Modifier.weight(1f),
+                )
+                visibleSongs.isEmpty() -> EmptyHint(
+                    text = "没有匹配「${query.trim()}」的歌曲",
+                    modifier = Modifier.weight(1f),
+                )
+                else -> LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    itemsIndexed(playlist.songs, key = { _, song -> song.id }) { index, song ->
+                    itemsIndexed(visibleSongs, key = { _, song -> song.id }) { index, song ->
                         val isCurrent = song.id == player.currentSongId
                         SongRow(
                             song = song,
@@ -210,7 +226,8 @@ fun PlaylistScreen(
                             isCurrent = isCurrent,
                             isPlaying = isCurrent && player.isPlaying,
                             onClick = {
-                                player.play(playlist.songs, index)
+                                // 队列 = 当前看到的列表（搜索后接着放的就是命中的这些）
+                                player.play(visibleSongs, index)
                                 onOpenPlayer()
                             },
                             trailing = {
@@ -225,6 +242,22 @@ fun PlaylistScreen(
 
             MiniPlayerBar(app = app, onClick = onOpenPlayer)
         }
+    }
+}
+
+/** 列表区的居中空态提示。 */
+@Composable
+private fun EmptyHint(text: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Neu.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

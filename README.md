@@ -15,6 +15,8 @@
 - 递归时在同级目录里自动配对同名 `.lrc`
 - 音频格式：mp3 / m4a / mp4a / aac / flac / wav / wave / ogg / oga / opus / wma / ape / aif / aiff / mka / amr / 3gp / dsf / dff
 - 手动「重新扫描」重新遍历目录（不读音频标签，纯列目录，速度取决于文件数）
+- **按文件名搜索**：列表页顶部有搜索框，输入即过滤（忽略大小写），标题栏显示「命中数 / 总数」；
+  搜索状态下点歌，**播放队列就是当前看到的这些歌**。目录列表和收藏列表都有
 - **不读任何音频标签**：歌曲标题 = 文件名（去扩展名），艺术家/专辑留空，时长由播放器播放时实时提供
 
 ### 2. 收藏
@@ -99,7 +101,7 @@ music/
             ├── AppRoot.kt              # 导航（6 个页面，字符串路由）+ 启动恢复上次播放
             ├── theme/Theme.kt          # 固定浅色拟态主题
             ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSwitch / NeuSegmented / NeuSlider）
-            ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow
+            ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow、搜索框
             ├── home/HomeScreen.kt      # 目录列表 + 收藏入口 + 设置入口
             ├── favorites/FavoritesScreen.kt  # 收藏列表
             ├── settings/SettingsScreen.kt    # 全局配置 + 关于
@@ -112,7 +114,7 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.2.2` / `versionCode 5`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.3.0` / `versionCode 6`）。
 
 ### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
 
@@ -131,6 +133,7 @@ music/
 | 新增定时退出 | 顶栏入口；预设 15/30/60/90/120 分钟 + 自定义；到点停止播放并退出 App |
 | 新增收藏列表 | 播放页/歌曲行红心；首页收藏入口；收藏列表可作播放队列；失效收藏自动隐藏 |
 | 新增设置页 | 全局配置（恢复上次播放 / 定时退出到点动作 / 数据清理）+ 关于；顶栏齿轮进入 |
+| 新增列表搜索 | 目录列表与收藏列表顶部加搜索框，按文件名过滤；搜索时队列 = 当前看到的列表 |
 
 > 另：不读音频标签后，**列表页在歌曲播放前不显示时长**（时长由播放器播放时实时提供）。
 
@@ -213,15 +216,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.2.2-release.apk` | **2.52 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.2.2-debug.apk` | 23.7 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.3.0-release.apk` | **2.52 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.3.0-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.2.2-release.apk
+adb install -r dist/轻响-LightMusic-1.3.0-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -245,15 +248,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.2.2.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.3.0.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.2.2.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.3.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.2.2          # 需以 v 开头，如 v1.2.2 / v1.0.1 / v2.0.0
-git push origin v1.2.2  # 推上去即触发编译
+git tag v1.3.0          # 需以 v 开头，如 v1.3.0 / v1.0.1 / v2.0.0
+git push origin v1.3.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -334,7 +337,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 - 不支持内嵌歌词（仅 `.lrc` 外挂文件）、不支持逐字歌词（`.krc` / `.qrc`）
 - **不读任何音频标签**：没有专辑封面、艺术家、专辑、时长（列表里播放前不显示时长）；
   早期版本读标签会明显拖慢扫描，且标签与文件名不一致时歌词配对容易困惑，故有意省掉
-- 没有搜索、没有排序方式切换
+- 没有排序方式切换；搜索只按**文件名**匹配，不搜歌词内容
 - 歌词偏移按文件 uri 记忆，歌曲文件被移动/改名后会丢失
 - 颜色只有 8 个预设，不能自定义任意色相（原色相滑条因定位不准已移除）
 - 通知栏控制在 Android 13+ 默认不可用（不申请通知权限，需到系统设置手动打开，见 v1.2）
@@ -343,7 +346,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 按改动成本从低到高：
 
-1. 曲库搜索框（`LazyColumn` 前加过滤，几行代码）
+1. 跨目录全局搜索（现在是"在哪个列表搜哪个列表"，全局搜要新增一个页面）
 2. 播放队列界面（`controller.getMediaItemAt(i)` 直接可用）
 3. 倍速播放（ExoPlayer 原生支持 `setPlaybackSpeed`）
 4. 歌词字体/行距自定义、歌词竖排等纯 UI 增强（不涉及读标签，与现有取舍不冲突）
