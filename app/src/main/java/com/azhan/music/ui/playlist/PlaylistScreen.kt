@@ -65,6 +65,7 @@ fun PlaylistScreen(
     val player = app.player
     val playlists by app.library.playlists.collectAsStateWithLifecycle()
     val favorites by app.library.favorites.collectAsStateWithLifecycle()
+    val prefs by app.library.prefs.collectAsStateWithLifecycle()
     val playlist = remember(playlists, playlistId) { playlists.firstOrNull { it.id == playlistId } }
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -304,18 +305,21 @@ fun PlaylistScreen(
                             },
                             trailing = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    NeuIconButton(
-                                        icon = Icons.Outlined.DeleteOutline,
-                                        onClick = {
-                                            deleteTarget = song
-                                            deleteStage = 1
-                                        },
-                                        contentDescription = "删除文件",
-                                        size = 34.dp,
-                                        iconSize = 17.dp,
-                                        tint = Neu.TextSecondary,
-                                    )
-                                    Spacer(Modifier.width(2.dp))
+                                    // 删除能力可在「设置 → 数据」里关掉；关掉后整列都不出现删除入口
+                                    if (prefs.allowFileDelete) {
+                                        NeuIconButton(
+                                            icon = Icons.Outlined.DeleteOutline,
+                                            onClick = {
+                                                deleteTarget = song
+                                                deleteStage = 1
+                                            },
+                                            contentDescription = "删除文件",
+                                            size = 34.dp,
+                                            iconSize = 17.dp,
+                                            tint = Neu.TextSecondary,
+                                        )
+                                        Spacer(Modifier.width(2.dp))
+                                    }
                                     FavoriteButton(isFavorite = song.id in favorites) {
                                         scope.launch { app.library.toggleFavorite(song.id) }
                                     }

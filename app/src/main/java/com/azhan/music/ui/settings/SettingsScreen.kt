@@ -163,6 +163,27 @@ fun SettingsScreen(
                     "共 ${playlists.size} 个目录 · $songCount 首"
                 },
             ) {
+                SwitchRow(
+                    title = "允许删除本地文件",
+                    subtitle = "关闭后播放列表不再显示删除按钮，避免误触把歌删掉",
+                    checked = prefs.allowFileDelete,
+                    onCheckedChange = { value ->
+                        scope.launch {
+                            app.library.updatePrefs { it.copy(allowFileDelete = value) }
+                            snackbarHostState.showSnackbar(
+                                if (value) {
+                                    "已开启：播放列表可以删除文件"
+                                } else {
+                                    "已关闭：播放列表不再显示删除按钮"
+                                },
+                                duration = SnackbarDuration.Short,
+                            )
+                        }
+                    },
+                )
+
+                Spacer(Modifier.height(12.dp))
+
                 ActionButton(
                     text = if (rescanning) "正在扫描…" else "重新扫描全部目录",
                     enabled = !rescanning && playlists.isNotEmpty(),

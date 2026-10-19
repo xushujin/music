@@ -181,6 +181,10 @@ class LibraryRepository(
      * 文件已经不存在的（在别的 App 里删过）不算失败，直接清掉曲库记录。
      */
     suspend fun deleteSong(songId: String): DeleteResult = withContext(Dispatchers.IO) {
+        // 设置里关掉「允许删除本地文件」后，即便 UI 有漏网的入口也不真删
+        if (!_prefs.value.allowFileDelete) {
+            return@withContext DeleteResult.Failed("已在设置里关闭「允许删除本地文件」")
+        }
         val song = song(songId) ?: return@withContext DeleteResult.Failed("这首歌已经不在曲库里了")
 
         // 幂等：已经有读写授权时什么都不会发生；只有读权限的旧目录会抛 SecurityException，

@@ -28,6 +28,8 @@
 - 文件在别的 App 里已经删掉的，直接从曲库清掉，不报错
 - 需要目录的**写权限**：新添加的目录默认读写一起授权；
   早期只授权了读的目录，删除时会提示「回首页移除该目录后重新添加」（tree uri 不变，收藏不会丢）
+- **可以整体关掉**：设置 → 数据里的「允许删除本地文件」开关（默认开启）。
+  关掉后播放列表不显示删除入口，数据层也会拒绝删除请求（双保险）
 
 ### 3. 收藏
 
@@ -67,7 +69,7 @@
 
 - **播放**：启动时恢复上次播放（**只装载、不自动播放**，避免一开 App 就出声）
 - **定时退出**：到点动作（退出应用 / 仅暂停）
-- **数据**：重新扫描全部目录 / 清空收藏 / 重置歌词时间微调
+- **数据**：允许删除本地文件（开关）/ 重新扫描全部目录 / 清空收藏 / 重置歌词时间微调
   - 扫描期间按钮禁用并显示**实时进度**（目录名 + 已找到数量），不会重复叠加扫描
   - 操作结果用**页面内 Snackbar + 卡片底部「上次操作」**展示，不依赖系统 Toast
   - 清空收藏有二次确认，并告诉你清掉了多少首
@@ -128,7 +130,20 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.5.0` / `versionCode 9`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.5.1` / `versionCode 10`）。
+
+### v1.5.1 · 删除文件做成可选
+
+删除是破坏性操作，不同人接受度不一样，所以给了个总开关：
+
+| 改动 | 说明 |
+|---|---|
+| 新增偏好 | `AppPrefs.allowFileDelete`，默认 `true` —— 升级上来行为和 1.5.0 一致，不会突然少个按钮 |
+| 设置入口 | 设置 → 数据 顶部新增「允许删除本地文件」开关，切换后有 Snackbar 反馈 |
+| 列表联动 | 关掉后播放列表每行的垃圾桶图标整体不渲染，只剩收藏红心 |
+| 数据层兜底 | `LibraryRepository.deleteSong()` 开头再查一次这个开关，即使 UI 有漏网入口也不会真删 |
+
+> 验证状态：**仅编译验证**（`assembleRelease` 通过），未真机复核。
 
 ### v1.5.0 · 播放列表支持删除本地文件
 
@@ -272,15 +287,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.5.0-release.apk` | **2.52 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.5.0-debug.apk` | 23.7 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.5.1-release.apk` | **2.42 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.5.1-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.5.0-release.apk
+adb install -r dist/轻响-LightMusic-1.5.1-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -304,15 +319,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.5.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.5.1.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.5.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.5.1.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.5.0          # 需以 v 开头，如 v1.5.0 / v1.0.1 / v2.0.0
-git push origin v1.5.0  # 推上去即触发编译
+git tag v1.5.1          # 需以 v 开头，如 v1.5.1 / v1.0.1 / v2.0.0
+git push origin v1.5.1  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
