@@ -41,6 +41,9 @@ class LyricPrefsState(private val store: MusicStore) {
     fun offsetOf(songId: String?): Long =
         if (songId == null) 0L else offsets[songId] ?: 0L
 
+    /** 有多少首歌设过时间微调（设置页用来决定按钮是否可点）。 */
+    val offsetCount: Int get() = offsets.size
+
     /** deltaMs > 0 表示歌词提前出现（有效播放位置 = 真实位置 + offset）。 */
     fun addOffset(songId: String, deltaMs: Long) {
         val next = (offsetOf(songId) + deltaMs).coerceIn(-30_000L, 30_000L)
@@ -53,10 +56,13 @@ class LyricPrefsState(private val store: MusicStore) {
         save()
     }
 
-    /** 清空所有歌曲的时间微调（颜色与字号保留）。 */
-    fun resetAllOffsets() {
+    /** 清空所有歌曲的时间微调（颜色与字号保留），返回被清掉的歌曲数。 */
+    fun resetAllOffsets(): Int {
+        val count = offsets.size
+        if (count == 0) return 0
         offsets = emptyMap()
         save()
+        return count
     }
 
     fun updateColor(value: Long) {

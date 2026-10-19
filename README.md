@@ -58,6 +58,9 @@
 - **播放**：启动时恢复上次播放（**只装载、不自动播放**，避免一开 App 就出声）
 - **定时退出**：到点动作（退出应用 / 仅暂停）
 - **数据**：重新扫描全部目录 / 清空收藏 / 重置歌词时间微调
+  - 扫描期间按钮禁用并显示**实时进度**（目录名 + 已找到数量），不会重复叠加扫描
+  - 操作结果用**页面内 Snackbar + 卡片底部「上次操作」**展示，不依赖系统 Toast
+  - 清空收藏有二次确认，并告诉你清掉了多少首
 - **关于**：版本号（读 `BuildConfig.VERSION_NAME`）与一句话说明
 
 > **故意没有「深色 / 浅色」切换**：拟态风格依赖"元素与背景同色、靠阴影分层"，
@@ -115,7 +118,33 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.4.0` / `versionCode 7`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.4.1` / `versionCode 8`）。
+
+### v1.4.1 · 设置页「数据」区按钮没反馈（已修）
+
+**现象**：设置 → 数据里的「重新扫描全部目录 / 清空收藏 / 重置歌词时间微调」点下去毫无反应。
+
+**根因**（两条叠加，都不是"没绑点击事件"）：
+
+1. 反馈全靠 `Toast`。本 App 刻意不申请 `POST_NOTIFICATIONS`（见 v1.2），
+   而国内 ROM（MIUI / HyperOS / ColorOS 等）常把 Toast 与通知开关绑定 ——
+   通知被关掉时 `Toast.show()` 直接被系统丢弃，于是"点了等于没点"。
+2. `rescanAll()` 是**逐个目录顺序扫描**，几千首要几十秒。这段时间界面完全静默，
+   按钮既没有禁用也没有进度，用户既看不到反馈、还能反复点击叠加多次扫描。
+
+**修法**：
+
+| 改动 | 说明 |
+|---|---|
+| 反馈改到页面内 | `Scaffold` 挂 `SnackbarHost`（拟态配色），另在卡片底部保留一行「上次操作：…」，Snackbar 消失后仍能看到结果 |
+| 扫描进度 | `MusicScanner.scan` 的回调改为 `(目录, 已找到数)`，设置页实时显示「正在扫描「Music」· 专辑/xxx · 已找到 128 首」 |
+| 防重复触发 | 扫描期间按钮 `enabled = false`，文案变「正在扫描…」 |
+| 结果更具体 | `rescanAll()` 返回 `RescanSummary(目录数, 歌曲数, 失败目录数)`，失败会单独提示 |
+| 破坏性操作加确认 | 「清空收藏」先弹确认框，完成后提示清掉了几首；无收藏时按钮置灰 |
+| 空态置灰 | 没有目录 / 没有收藏 / 没有微调时，对应按钮不可点，不再出现"点了没动静" |
+| 顺带修 | `addDirectory` / `rescan` 不再把 `CancellationException` 当扫描失败吞掉（离开页面中断扫描时能正常退出） |
+
+> 验证状态：**仅代码审查，未编译、未真机复核**（本机没有 Android SDK / JDK 21 工具链）。
 
 ### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
 
@@ -217,15 +246,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.4.0-release.apk` | **2.52 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.4.0-debug.apk` | 23.7 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.4.1-release.apk` | **2.52 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.4.1-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.4.0-release.apk
+adb install -r dist/轻响-LightMusic-1.4.1-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -249,15 +278,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.4.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.4.1.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.4.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.4.1.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.4.0          # 需以 v 开头，如 v1.4.0 / v1.0.1 / v2.0.0
-git push origin v1.4.0  # 推上去即触发编译
+git tag v1.4.1          # 需以 v 开头，如 v1.4.1 / v1.0.1 / v2.0.0
+git push origin v1.4.1  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。

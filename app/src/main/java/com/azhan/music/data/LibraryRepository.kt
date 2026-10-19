@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,9 @@ sealed interface AddResult {
 }
 
 data class ScanState(val playlistName: String, val currentDir: String, val found: Int)
+
+/** 「重新扫描全部目录」的结果，用于给用户一句完整的反馈。 */
+data class RescanSummary(val playlists: Int, val songs: Int, val failed: Int)
 
 /**
  * 曲库仓库。整个 App 只有一个实例（挂在 Application 上），UI 直接读它的 StateFlow。
@@ -121,6 +125,8 @@ class LibraryRepository(
             )
             persist(_playlists.value + playlist)
             AddResult.Added(name, songs.size)
+        } catch (c: CancellationException) {
+            throw c
         } catch (t: Throwable) {
             AddResult.Failed(t.message ?: "扫描失败")
         } finally {
@@ -135,6 +141,8 @@ class LibraryRepository(
             val updated = playlist.copy(songs = songs, updatedAt = System.currentTimeMillis())
             persist(_playlists.value.map { if (it.id == playlistId) updated else it })
             AddResult.Rescanned(playlist.name, songs.size)
+        } catch (c: CancellationException) {
+            throw c
         } catch (t: Throwable) {
             AddResult.Failed(t.message ?: "扫描失败")
         } finally {
@@ -175,29 +183,34 @@ class LibraryRepository(
     /** 曲库里的歌曲总数，搜索页空态提示用。 */
     fun totalSongCount(): Int = _playlists.value.sumOf { it.songs.size }
 
-    /** 重新扫描所有目录，返回扫到的歌曲总数。 */
-    suspend fun rescanAll(): Int {
-        var total = 0
-        _playlists.value.toList().forEach { playlist ->
+    /** 重新扫描所有目录，返回扫描摘要（成功目录数 / 歌曲总数 / 失败目录数）。 */
+    suspend fun rescanAll(): RescanSummary {
+        val all = _playlists.value.toList()
+        var songs = 0
+        var failed = 0
+        all.forEach { playlist ->
             when (val result = rescan(playlist.id)) {
-                is AddResult.Rescanned -> total += result.count
-                is AddResult.Added -> total += result.count
-                is AddResult.Failed -> Unit
+                is AddResult.Rescanned -> songs += result.count
+                is AddResult.Added -> songs += result.count
+                is AddResult.Failed -> failed++
             }
         }
-        return total
+        return RescanSummary(playlists = all.size, songs = songs, failed = failed)
     }
 
-    suspend fun clearFavorites() {
-        if (_favorites.value.isEmpty()) return
+    /** 清空收藏，返回实际清掉的歌曲数（已失效的收藏不算）。 */
+    suspend fun clearFavorites(): Int {
+        val count = favoriteSongs().size
+        if (_favorites.value.isEmpty()) return 0
         _favorites.value = emptySet()
         withContext(Dispatchers.IO) { store.saveFavorites(emptySet()) }
+        return count
     }
 
     private suspend fun scanTree(playlistId: String, treeUri: Uri, name: String): List<Song> {
         _scanning.value = ScanState(name, "", 0)
-        val raws = scanner.scan(treeUri) { dir ->
-            _scanning.value = ScanState(name, dir, 0)
+        val raws = scanner.scan(treeUri) { dir, found ->
+            _scanning.value = ScanState(name, dir, found)
         }
         _scanning.value = ScanState(name, "", raws.size)
 

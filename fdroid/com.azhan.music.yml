@@ -69,8 +69,14 @@ Builds:
     gradle:
       - yes
 
+  - versionName: '1.4.1'
+    versionCode: 8
+    commit: v1.4.1
+    gradle:
+      - yes
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[\d.]+$
 UpdateCheckData: app/build.gradle.kts|versionCode\s*=\s*(\d+)|.|versionName\s*=\s*"(.*)"
-CurrentVersion: '1.4.0'
-CurrentVersionCode: 7
+CurrentVersion: '1.4.1'
+CurrentVersionCode: 8

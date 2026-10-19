@@ -22,7 +22,11 @@ class MusicScanner(private val context: Context) {
         val lrcUri: Uri?,
     )
 
-    suspend fun scan(treeUri: Uri, onDir: (String) -> Unit = {}): List<RawSong> =
+    /**
+     * @param onDir 每进入一个目录回调一次（目录相对路径, 当前已找到的歌曲数）。
+     *              带计数是为了让设置页能显示真实进度，而不是一直停在 0。
+     */
+    suspend fun scan(treeUri: Uri, onDir: (String, Int) -> Unit = { _, _ -> }): List<RawSong> =
         withContext(Dispatchers.IO) {
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext emptyList()
             val out = ArrayList<RawSong>()
@@ -35,11 +39,11 @@ class MusicScanner(private val context: Context) {
         path: String,
         depth: Int,
         out: MutableList<RawSong>,
-        onDir: (String) -> Unit,
+        onDir: (String, Int) -> Unit,
     ) {
         if (depth > MAX_DEPTH || out.size >= MAX_FILES) return
         val children = runCatching { dir.listFiles() }.getOrNull() ?: return
-        onDir(if (path.isEmpty()) dir.name.orEmpty() else path)
+        onDir(if (path.isEmpty()) dir.name.orEmpty() else path, out.size)
 
         // 先收集本目录下的歌词，再和音频配对
         val lyrics = HashMap<String, Uri>()
