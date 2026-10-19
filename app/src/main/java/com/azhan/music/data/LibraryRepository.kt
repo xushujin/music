@@ -55,6 +55,13 @@ class LibraryRepository(
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
     val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
 
+    /**
+     * 只从列表移除、文件还留在手机里的歌曲 id。
+     * 重新扫描目录时用它过滤，否则被移除的歌下次扫描又会冒出来。
+     */
+    private val _removed = MutableStateFlow<Set<String>>(emptySet())
+    val removed: StateFlow<Set<String>> = _removed.asStateFlow()
+
     /** 全局偏好（设置页）。 */
     private val _prefs = MutableStateFlow(AppPrefs())
     val prefs: StateFlow<AppPrefs> = _prefs.asStateFlow()
@@ -62,6 +69,7 @@ class LibraryRepository(
     suspend fun load() {
         _playlists.value = store.playlists.first()
         _favorites.value = store.favorites.first()
+        _removed.value = store.removedSongs.first()
         _prefs.value = store.appPrefs.first()
     }
 
@@ -181,10 +189,6 @@ class LibraryRepository(
      * 文件已经不存在的（在别的 App 里删过）不算失败，直接清掉曲库记录。
      */
     suspend fun deleteSong(songId: String): DeleteResult = withContext(Dispatchers.IO) {
-        // 设置里关掉「允许删除本地文件」后，即便 UI 有漏网的入口也不真删
-        if (!_prefs.value.allowFileDelete) {
-            return@withContext DeleteResult.Failed("已在设置里关闭「允许删除本地文件」")
-        }
         val song = song(songId) ?: return@withContext DeleteResult.Failed("这首歌已经不在曲库里了")
 
         // 幂等：已经有读写授权时什么都不会发生；只有读权限的旧目录会抛 SecurityException，
@@ -220,8 +224,51 @@ class LibraryRepository(
         DeleteResult.Deleted(song.title)
     }
 
-    /** 文件删掉后同步清理曲库与收藏，避免留下点不开的死条目。 */
-    private suspend fun removeSongFromLibrary(song: Song) {
+    /**
+     * 只把歌从播放列表移除，**不动文件**。
+     *
+     * 会记住这个 id：重新扫描目录时按它过滤，被移除的歌不会又冒出来。
+     * 返回被移除的歌，供 Snackbar 的「撤销」用；曲库里找不到时返回 null。
+     */
+    suspend fun removeFromPlaylist(songId: String): Song? = withContext(Dispatchers.IO) {
+        val song = song(songId) ?: return@withContext null
+        val nextRemoved = _removed.value + song.id
+        _removed.value = nextRemoved
+        store.saveRemovedSongs(nextRemoved)
+        dropSongFromLists(song)
+        song
+    }
+
+    /**
+     * 撤销「仅移除」：把歌放回它原来的播放列表，并取消隐藏标记。
+     * 用的是内存里保存的 Song 数据，不需要重新扫描目录。
+     */
+    suspend fun restoreSong(song: Song) = withContext(Dispatchers.IO) {
+        if (_removed.value.contains(song.id)) {
+            val nextRemoved = _removed.value - song.id
+            _removed.value = nextRemoved
+            store.saveRemovedSongs(nextRemoved)
+        }
+
+        val collator = Collator.getInstance(Locale.CHINA)
+        val now = System.currentTimeMillis()
+        val next = _playlists.value.map { playlist ->
+            if (playlist.id != song.treeUri) {
+                playlist
+            } else {
+                playlist.copy(
+                    songs = (playlist.songs + song)
+                        .distinctBy { it.id }
+                        .sortedWith(Comparator { a, b -> collator.compare(a.title, b.title) }),
+                    updatedAt = now,
+                )
+            }
+        }
+        persist(next)
+    }
+
+    /** 从播放列表里摘掉这首歌并落盘（不碰文件，也不碰收藏）。 */
+    private suspend fun dropSongFromLists(song: Song) {
         val now = System.currentTimeMillis()
         val next = _playlists.value.map { playlist ->
             if (playlist.songs.none { it.id == song.id }) {
@@ -234,6 +281,18 @@ class LibraryRepository(
             }
         }
         persist(next)
+    }
+
+    /** 文件删掉后同步清理曲库与收藏，避免留下点不开的死条目。 */
+    private suspend fun removeSongFromLibrary(song: Song) {
+        dropSongFromLists(song)
+
+        // 物理删除后文件不会再被扫到，隐藏标记留着也没意义
+        if (_removed.value.contains(song.id)) {
+            val nextRemoved = _removed.value - song.id
+            _removed.value = nextRemoved
+            store.saveRemovedSongs(nextRemoved)
+        }
 
         if (_favorites.value.contains(song.id)) {
             val left = _favorites.value - song.id
@@ -298,9 +357,12 @@ class LibraryRepository(
 
         // 不读音频标签：标题直接用文件名（去扩展名），艺术家/专辑/时长都不读。
         // 时长由播放器在播放时实时提供，扫描阶段不预读，避免逐个开 MediaMetadataRetriever。
+        // 同时过滤掉「只从列表移除」的歌，否则每次重新扫描都会把它们放回来。
+        val hidden = _removed.value
         val collator = Collator.getInstance(Locale.CHINA)
         return raws
             .distinctBy { it.uri.toString() }
+            .filterNot { it.uri.toString() in hidden }
             .map { raw ->
                 Song(
                     id = raw.uri.toString(),

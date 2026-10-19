@@ -64,14 +64,10 @@ enum class SleepAction { EXIT, PAUSE }
  * @param sleepAction 倒计时到点后是退出应用还是只暂停
  * @param autoResume  启动时是否把上次播放的歌装回播放器（只装载、不自动播放）
  * @param lastSongId  上次播放的歌曲 id，仅用于上面的恢复
- * @param allowFileDelete 是否允许在播放列表里删除本地音频文件。
- *        默认开启（老版本升级上来也保持原样）；关掉后列表不显示删除入口，
- *        数据层也会拒绝删除请求，避免误触把歌删没了。
  */
 @Serializable
 data class AppPrefs(
     val sleepAction: SleepAction = SleepAction.EXIT,
     val autoResume: Boolean = true,
     val lastSongId: String? = null,
-    val allowFileDelete: Boolean = true,
 )

@@ -24,8 +24,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -65,7 +67,6 @@ fun PlaylistScreen(
     val player = app.player
     val playlists by app.library.playlists.collectAsStateWithLifecycle()
     val favorites by app.library.favorites.collectAsStateWithLifecycle()
-    val prefs by app.library.prefs.collectAsStateWithLifecycle()
     val playlist = remember(playlists, playlistId) { playlists.firstOrNull { it.id == playlistId } }
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -120,11 +121,64 @@ fun PlaylistScreen(
         )
     }
 
-    // ---- 删除本地文件：第一步，说明清楚会发生什么 ----
+    // ---- 第一步：先选「只从列表移除」还是「连文件一起删」 ----
     val target = deleteTarget
     if (target != null && deleteStage == 1) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null; deleteStage = 0 },
+            shape = NeuShapes.card,
+            containerColor = Neu.Background,
+            titleContentColor = Neu.TextPrimary,
+            textContentColor = Neu.TextSecondary,
+            title = { Text("删除「${target.title}」", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Text(
+                    "仅移除：只从播放列表里拿掉，手机里的音频文件不动；" +
+                        "重新扫描也不会再出现，误点可以在提示里撤销。\n\n" +
+                        "删除文件：把手机里这个音频文件永久删掉，无法恢复。",
+                )
+            },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = {
+                        deleteTarget = null
+                        deleteStage = 0
+                        scope.launch {
+                            val removed = app.library.removeFromPlaylist(target.id)
+                            if (removed == null) {
+                                snackbarHostState.showSnackbar("这首歌已经不在曲库里了")
+                                return@launch
+                            }
+                            val action = snackbarHostState.showSnackbar(
+                                message = "已从列表移除「${removed.title}」，文件还在",
+                                actionLabel = "撤销",
+                                duration = SnackbarDuration.Long,
+                            )
+                            if (action == SnackbarResult.ActionPerformed) {
+                                app.library.restoreSong(removed)
+                                snackbarHostState.showSnackbar("已恢复「${removed.title}」")
+                            }
+                        }
+                    }) {
+                        Text("仅移除", color = Neu.Accent)
+                    }
+                    TextButton(onClick = { deleteStage = 2 }) {
+                        Text("删除文件…", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null; deleteStage = 0 }) {
+                    Text("取消", color = Neu.TextSecondary)
+                }
+            },
+        )
+    }
+
+    // ---- 第二步：选了「删除文件」才到这里，说明后果 ----
+    if (target != null && deleteStage == 2) {
+        AlertDialog(
+            onDismissRequest = { deleteStage = 1 },
             shape = NeuShapes.card,
             containerColor = Neu.Background,
             titleContentColor = Neu.TextPrimary,
@@ -139,22 +193,22 @@ fun PlaylistScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { deleteStage = 2 }) {
+                TextButton(onClick = { deleteStage = 3 }) {
                     Text("继续", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null; deleteStage = 0 }) {
-                    Text("取消", color = Neu.TextSecondary)
+                TextButton(onClick = { deleteStage = 1 }) {
+                    Text("返回", color = Neu.TextSecondary)
                 }
             },
         )
     }
 
-    // ---- 第二步，真正的最后确认 ----
-    if (target != null && deleteStage == 2) {
+    // ---- 第三步，真正的最后确认 ----
+    if (target != null && deleteStage == 3) {
         AlertDialog(
-            onDismissRequest = { deleteStage = 1 },
+            onDismissRequest = { deleteStage = 2 },
             shape = NeuShapes.card,
             containerColor = Neu.Background,
             titleContentColor = Neu.TextPrimary,
@@ -194,7 +248,7 @@ fun PlaylistScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteStage = 1 }) {
+                TextButton(onClick = { deleteStage = 2 }) {
                     Text("取消", color = Neu.TextSecondary)
                 }
             },
@@ -210,6 +264,7 @@ fun PlaylistScreen(
                     shape = NeuShapes.chip,
                     containerColor = Neu.TextPrimary,
                     contentColor = Neu.Background,
+                    actionContentColor = Neu.AccentSoft,
                 )
             }
         },
@@ -305,21 +360,18 @@ fun PlaylistScreen(
                             },
                             trailing = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // 删除能力可在「设置 → 数据」里关掉；关掉后整列都不出现删除入口
-                                    if (prefs.allowFileDelete) {
-                                        NeuIconButton(
-                                            icon = Icons.Outlined.DeleteOutline,
-                                            onClick = {
-                                                deleteTarget = song
-                                                deleteStage = 1
-                                            },
-                                            contentDescription = "删除文件",
-                                            size = 34.dp,
-                                            iconSize = 17.dp,
-                                            tint = Neu.TextSecondary,
-                                        )
-                                        Spacer(Modifier.width(2.dp))
-                                    }
+                                    NeuIconButton(
+                                        icon = Icons.Outlined.DeleteOutline,
+                                        onClick = {
+                                            deleteTarget = song
+                                            deleteStage = 1
+                                        },
+                                        contentDescription = "删除",
+                                        size = 34.dp,
+                                        iconSize = 17.dp,
+                                        tint = Neu.TextSecondary,
+                                    )
+                                    Spacer(Modifier.width(2.dp))
                                     FavoriteButton(isFavorite = song.id in favorites) {
                                         scope.launch { app.library.toggleFavorite(song.id) }
                                     }

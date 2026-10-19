@@ -30,6 +30,7 @@ class MusicStore(context: Context) {
     private val lyricKey = stringPreferencesKey("lyric_prefs")
     private val favoritesKey = stringPreferencesKey("favorites")
     private val appPrefsKey = stringPreferencesKey("app_prefs")
+    private val removedKey = stringPreferencesKey("removed_songs")
 
     private val playlistsSerializer = ListSerializer(Playlist.serializer())
     private val favoritesSerializer = ListSerializer(String.serializer())
@@ -53,6 +54,16 @@ class MusicStore(context: Context) {
         }?.toSet() ?: emptySet()
     }
 
+    /**
+     * 只从列表移除、没删文件的歌曲 id。
+     * 重新扫描目录时会拿它做过滤，否则被移除的歌下次扫描又会冒出来。
+     */
+    val removedSongs: Flow<Set<String>> = appContext.dataStore.data.map { prefs ->
+        prefs[removedKey]?.let {
+            runCatching { json.decodeFromString(favoritesSerializer, it) }.getOrNull()
+        }?.toSet() ?: emptySet()
+    }
+
     /** 全局偏好（设置页）。 */
     val appPrefs: Flow<AppPrefs> = appContext.dataStore.data.map { prefs ->
         prefs[appPrefsKey]?.let {
@@ -71,6 +82,12 @@ class MusicStore(context: Context) {
     suspend fun saveFavorites(ids: Set<String>) {
         appContext.dataStore.edit {
             it[favoritesKey] = json.encodeToString(favoritesSerializer, ids.toList())
+        }
+    }
+
+    suspend fun saveRemovedSongs(ids: Set<String>) {
+        appContext.dataStore.edit {
+            it[removedKey] = json.encodeToString(favoritesSerializer, ids.toList())
         }
     }
 
