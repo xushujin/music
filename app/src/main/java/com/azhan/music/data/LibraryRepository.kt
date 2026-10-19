@@ -20,6 +20,16 @@ sealed interface AddResult {
     data class Failed(val message: String) : AddResult
 }
 
+/** 删除单曲文件的结果。 */
+sealed interface DeleteResult {
+    /**
+     * @param fileMissing 文件本来就不在了（比如在别的 App 里删过），
+     *                    这时只把曲库里的记录清掉，不需要报错吓用户。
+     */
+    data class Deleted(val title: String, val fileMissing: Boolean = false) : DeleteResult
+    data class Failed(val message: String) : DeleteResult
+}
+
 data class ScanState(val playlistName: String, val currentDir: String, val found: Int)
 
 /** 「重新扫描全部目录」的结果，用于给用户一句完整的反馈。 */
@@ -155,8 +165,76 @@ class LibraryRepository(
         runCatching {
             context.contentResolver.releasePersistableUriPermission(
                 Uri.parse(playlistId),
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
+        }
+    }
+
+    /**
+     * 删除一首歌对应的**本地文件**，并从曲库 / 收藏里移除。
+     *
+     * 走 SAF 的 `DocumentFile.delete()`，需要目录的写权限：
+     * - 新添加的目录会同时申请读写（见 HomeScreen），删除开箱可用；
+     * - 早期版本只申请了读权限的目录，这里会返回一条明确的提示，
+     *   让用户移除目录后重新添加 —— tree uri 不变，收藏和歌词微调都不会丢。
+     *
+     * 文件已经不存在的（在别的 App 里删过）不算失败，直接清掉曲库记录。
+     */
+    suspend fun deleteSong(songId: String): DeleteResult = withContext(Dispatchers.IO) {
+        val song = song(songId) ?: return@withContext DeleteResult.Failed("这首歌已经不在曲库里了")
+
+        // 幂等：已经有读写授权时什么都不会发生；只有读权限的旧目录会抛 SecurityException，
+        // 这里吞掉，真正的失败会在 delete() 时以更具体的文案报出来。
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                Uri.parse(song.treeUri),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+
+        val document = runCatching { DocumentFile.fromSingleUri(context, Uri.parse(song.uri)) }.getOrNull()
+        if (document == null || !document.exists()) {
+            removeSongFromLibrary(song)
+            return@withContext DeleteResult.Deleted(song.title, fileMissing = true)
+        }
+
+        val deleted = try {
+            document.delete()
+        } catch (e: SecurityException) {
+            return@withContext DeleteResult.Failed(
+                "没有删除权限。请回首页移除这个目录后重新添加（重新授权会同时申请读写）"
+            )
+        } catch (t: Throwable) {
+            return@withContext DeleteResult.Failed(t.message ?: "删除失败")
+        }
+
+        if (!deleted) {
+            return@withContext DeleteResult.Failed("系统拒绝删除这个文件（可能被其他 App 占用或只读）")
+        }
+
+        removeSongFromLibrary(song)
+        DeleteResult.Deleted(song.title)
+    }
+
+    /** 文件删掉后同步清理曲库与收藏，避免留下点不开的死条目。 */
+    private suspend fun removeSongFromLibrary(song: Song) {
+        val now = System.currentTimeMillis()
+        val next = _playlists.value.map { playlist ->
+            if (playlist.songs.none { it.id == song.id }) {
+                playlist
+            } else {
+                playlist.copy(
+                    songs = playlist.songs.filterNot { it.id == song.id },
+                    updatedAt = now,
+                )
+            }
+        }
+        persist(next)
+
+        if (_favorites.value.contains(song.id)) {
+            val left = _favorites.value - song.id
+            _favorites.value = left
+            store.saveFavorites(left)
         }
     }
 

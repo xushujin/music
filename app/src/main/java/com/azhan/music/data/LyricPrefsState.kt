@@ -56,6 +56,13 @@ class LyricPrefsState(private val store: MusicStore) {
         save()
     }
 
+    /** 歌曲文件被删掉后，把它的时间微调一并清掉，别留死数据。 */
+    fun removeOffset(songId: String) {
+        if (!offsets.containsKey(songId)) return
+        offsets = offsets - songId
+        save()
+    }
+
     /** 清空所有歌曲的时间微调（颜色与字号保留），返回被清掉的歌曲数。 */
     fun resetAllOffsets(): Int {
         val count = offsets.size

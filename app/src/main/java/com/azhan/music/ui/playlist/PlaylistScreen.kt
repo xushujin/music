@@ -19,9 +19,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -41,12 +43,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azhan.music.MusicApp
 import com.azhan.music.data.AddResult
+import com.azhan.music.data.DeleteResult
+import com.azhan.music.data.Song
 import com.azhan.music.ui.common.FavoriteButton
 import com.azhan.music.ui.common.MiniPlayerBar
 import com.azhan.music.ui.common.SongRow
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuBox
 import com.azhan.music.ui.theme.NeuIconButton
+import com.azhan.music.ui.theme.NeuShapes
 import kotlinx.coroutines.launch
 
 @Composable
@@ -63,6 +68,9 @@ fun PlaylistScreen(
     val playlist = remember(playlists, playlistId) { playlists.firstOrNull { it.id == playlistId } }
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmRemove by remember { mutableStateOf(false) }
+    // 删除文件是两步确认：1 = 说明后果，2 = 真正的最后确认
+    var deleteTarget by remember { mutableStateOf<Song?>(null) }
+    var deleteStage by remember { mutableStateOf(0) }
 
     if (playlist == null) {
         Box(
@@ -111,9 +119,99 @@ fun PlaylistScreen(
         )
     }
 
+    // ---- 删除本地文件：第一步，说明清楚会发生什么 ----
+    val target = deleteTarget
+    if (target != null && deleteStage == 1) {
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null; deleteStage = 0 },
+            shape = NeuShapes.card,
+            containerColor = Neu.Background,
+            titleContentColor = Neu.TextPrimary,
+            textContentColor = Neu.TextSecondary,
+            title = { Text("删除这个文件？", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Text(
+                    "「${target.fileName}」将从手机存储中永久删除，" +
+                        "同时从「${playlist.name}」里移除。\n\n" +
+                        "注意：删的是真实的音频文件，不是只从列表里拿掉；" +
+                        "不会进回收站，删了找不回来。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { deleteStage = 2 }) {
+                    Text("继续", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null; deleteStage = 0 }) {
+                    Text("取消", color = Neu.TextSecondary)
+                }
+            },
+        )
+    }
+
+    // ---- 第二步，真正的最后确认 ----
+    if (target != null && deleteStage == 2) {
+        AlertDialog(
+            onDismissRequest = { deleteStage = 1 },
+            shape = NeuShapes.card,
+            containerColor = Neu.Background,
+            titleContentColor = Neu.TextPrimary,
+            textContentColor = Neu.TextSecondary,
+            title = { Text("再次确认", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Text(
+                    "确定要永久删除「${target.fileName}」吗？\n\n" +
+                        "文件会立刻从设备上消失，无法恢复。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val song = target
+                    deleteTarget = null
+                    deleteStage = 0
+                    scope.launch {
+                        when (val result = app.library.deleteSong(song.id)) {
+                            is DeleteResult.Deleted -> {
+                                // 正在播 / 队列里的这首歌要一起摘掉，否则会播到一个不存在的文件
+                                player.forgetSong(song.id)
+                                app.lyricPrefs.removeOffset(song.id)
+                                snackbarHostState.showSnackbar(
+                                    if (result.fileMissing) {
+                                        "「${result.title}」的文件已不存在，已从曲库移除"
+                                    } else {
+                                        "已删除「${result.title}」"
+                                    }
+                                )
+                            }
+
+                            is DeleteResult.Failed -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }) {
+                    Text("永久删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteStage = 1 }) {
+                    Text("取消", color = Neu.TextSecondary)
+                }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = Neu.Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    shape = NeuShapes.chip,
+                    containerColor = Neu.TextPrimary,
+                    contentColor = Neu.Background,
+                )
+            }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -205,8 +303,22 @@ fun PlaylistScreen(
                                 onOpenPlayer()
                             },
                             trailing = {
-                                FavoriteButton(isFavorite = song.id in favorites) {
-                                    scope.launch { app.library.toggleFavorite(song.id) }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    NeuIconButton(
+                                        icon = Icons.Outlined.DeleteOutline,
+                                        onClick = {
+                                            deleteTarget = song
+                                            deleteStage = 1
+                                        },
+                                        contentDescription = "删除文件",
+                                        size = 34.dp,
+                                        iconSize = 17.dp,
+                                        tint = Neu.TextSecondary,
+                                    )
+                                    Spacer(Modifier.width(2.dp))
+                                    FavoriteButton(isFavorite = song.id in favorites) {
+                                        scope.launch { app.library.toggleFavorite(song.id) }
+                                    }
                                 }
                             },
                         )

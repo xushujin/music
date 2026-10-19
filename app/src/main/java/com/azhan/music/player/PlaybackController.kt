@@ -205,6 +205,27 @@ class PlaybackController(private val context: Context) {
         else mediaController.seekToPreviousMediaItem()
     }
 
+    /**
+     * 文件被删掉后把这首歌从当前队列里摘掉。
+     * 如果删的正好是正在播的那首，先暂停再摘 —— 否则 Media3 会自动接着播下一首。
+     */
+    fun forgetSong(songId: String) {
+        val mediaController = controller ?: return
+        val wasCurrent = currentSongId == songId
+        if (wasCurrent) runCatching { mediaController.pause() }
+        for (i in 0 until mediaController.mediaItemCount) {
+            if (mediaController.getMediaItemAt(i).mediaId == songId) {
+                runCatching { mediaController.removeMediaItem(i) }
+                break
+            }
+        }
+        if (wasCurrent) {
+            // 摘掉当前项后 Media3 会切到下一首，重新同步一次，别把新曲目的时长留成 0
+            positionMs = mediaController.currentPosition.coerceAtLeast(0L)
+            durationMs = mediaController.duration.takeIf { it > 0 } ?: 0L
+        }
+    }
+
     fun seekTo(ms: Long) {
         val target = ms.coerceAtLeast(0L)
         controller?.seekTo(target)

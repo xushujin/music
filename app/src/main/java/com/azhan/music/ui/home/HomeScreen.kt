@@ -87,12 +87,19 @@ fun HomeScreen(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
-            // 关键：拿到持久化读权限，否则重启后就读不到这个目录了
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
+            // 关键：拿到持久化权限，否则重启后就读不到这个目录了。
+            // 读写一起申请 —— 播放列表里的「删除文件」需要写权限；个别 provider 不给写时退回只读。
+            val readWrite = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            val granted = runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, readWrite)
+            }.isSuccess
+            if (!granted) {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                    )
+                }
             }
             scope.launch {
                 snackbarHostState.showSnackbar(app.library.addDirectory(uri).toMessage())
