@@ -4,6 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.azhan.music.data.ThemeMode
 import com.azhan.music.ui.AppRoot
 import com.azhan.music.ui.theme.MusicTheme
 
@@ -31,7 +35,14 @@ class MainActivity : ComponentActivity() {
         app.player.onSleepTimerEnd = { finishAndRemoveTask() }
 
         setContent {
-            MusicTheme {
+            // 外观三档：跟随系统 / 固定浅色 / 固定深色。prefs 加载完成后自动切换，不用重启
+            val prefs by app.library.prefs.collectAsStateWithLifecycle()
+            val darkTheme = when (prefs.themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            MusicTheme(darkTheme = darkTheme) {
                 AppRoot(app)
             }
         }

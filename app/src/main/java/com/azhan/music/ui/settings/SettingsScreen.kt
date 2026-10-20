@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azhan.music.BuildConfig
 import com.azhan.music.MusicApp
 import com.azhan.music.data.SleepAction
+import com.azhan.music.data.ThemeMode
 import com.azhan.music.ui.theme.Neu
 import com.azhan.music.ui.theme.NeuBox
 import com.azhan.music.ui.theme.NeuButton
@@ -85,8 +86,8 @@ fun SettingsScreen(
                 Snackbar(
                     snackbarData = data,
                     shape = NeuShapes.chip,
-                    containerColor = Neu.TextPrimary,
-                    contentColor = Neu.Background,
+                    containerColor = Neu.SnackbarBackground,
+                    contentColor = Neu.SnackbarContent,
                 )
             }
         },
@@ -131,6 +132,28 @@ fun SettingsScreen(
                     checked = prefs.autoResume,
                     onCheckedChange = { value ->
                         scope.launch { app.library.updatePrefs { it.copy(autoResume = value) } }
+                    },
+                )
+            }
+
+            // ---- 外观 ----
+            SettingCard(
+                title = "外观",
+                subtitle = "深色是单独一套拟态配色，光晕强度另外调过，不是简单反色",
+            ) {
+                NeuSegmented(
+                    options = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK),
+                    selected = prefs.themeMode,
+                    onSelect = { mode ->
+                        scope.launch { app.library.updatePrefs { it.copy(themeMode = mode) } }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = {
+                        when (it) {
+                            ThemeMode.SYSTEM -> "跟随系统"
+                            ThemeMode.LIGHT -> "浅色"
+                            ThemeMode.DARK -> "深色"
+                        }
                     },
                 )
             }

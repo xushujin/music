@@ -58,16 +58,22 @@ data class SongHit(val song: Song, val playlistName: String)
 @Serializable
 enum class SleepAction { EXIT, PAUSE }
 
+/** 外观：跟随系统 / 固定浅色 / 固定深色。 */
+@Serializable
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 /**
  * 全局偏好（设置页）。
  *
  * @param sleepAction 倒计时到点后是退出应用还是只暂停
  * @param autoResume  启动时是否把上次播放的歌装回播放器（只装载、不自动播放）
  * @param lastSongId  上次播放的歌曲 id，仅用于上面的恢复
+ * @param themeMode   外观。默认跟随系统；浅色/深色是两套独立的拟态配色，不是简单反色
  */
 @Serializable
 data class AppPrefs(
     val sleepAction: SleepAction = SleepAction.EXIT,
     val autoResume: Boolean = true,
     val lastSongId: String? = null,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 )

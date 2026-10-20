@@ -69,9 +69,11 @@
 
 ### 6. 设置与关于
 
-首页右上角齿轮进入。分四块：
+首页右上角齿轮进入。分五块：
 
 - **播放**：启动时恢复上次播放（**只装载、不自动播放**，避免一开 App 就出声）
+- **外观**：跟随系统 / 浅色 / 深色。深色是**另一套拟态配色**（不是反色），
+  光晕强度单独调过：暗影压重、高光收弱，否则深底上层次会糊掉
 - **定时退出**：到点动作（退出应用 / 仅暂停）
 - **数据**：重新扫描全部目录 / 清空收藏 / 重置歌词时间微调
   - 扫描期间按钮禁用并显示**实时进度**（目录名 + 已找到数量），不会重复叠加扫描
@@ -79,8 +81,10 @@
   - 清空收藏有二次确认，并告诉你清掉了多少首
 - **关于**：版本号（读 `BuildConfig.VERSION_NAME`）与一句话说明
 
-> **故意没有「深色 / 浅色」切换**：拟态风格依赖"元素与背景同色、靠阴影分层"，
-> 深色背景上阴影会糊成一片，所以 App 固定浅色（见「五、设计取舍」）。
+> **深色皮肤不是把浅色反色**：拟态靠"元素与背景同色、用一亮一暗两圈光晕分层"，
+> 纯黑背景上暗影无处可画、层次会糊。所以深色用 `#23262D`（比纯黑亮一档）做底，
+> 暗影接近黑、高光只留一点，见 `DarkNeuPalette` 里那组 alpha。
+> 状态栏/导航栏图标颜色会跟着皮肤切（`WindowCompat` 的 `isAppearanceLightStatusBars`）。
 
 ---
 
@@ -118,7 +122,7 @@ music/
         │   └── PlaybackController.kt   # MediaController → Compose state + 定时退出
         └── ui/
             ├── AppRoot.kt              # 导航（7 个页面，字符串路由）+ 启动恢复上次播放
-            ├── theme/Theme.kt          # 固定浅色拟态主题
+            ├── theme/Theme.kt          # 浅色/深色拟态主题（LocalNeu 提供配色）
             ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSwitch / NeuSegmented / NeuSlider）
             ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow、搜索框
             ├── home/HomeScreen.kt      # 目录列表 + 收藏 / 搜索 / 设置入口
@@ -134,7 +138,24 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.6.0` / `versionCode 11`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.7.0` / `versionCode 12`）。
+
+### v1.7.0 · 深色皮肤
+
+设置 → 外观：**跟随系统 / 浅色 / 深色**，点了立即生效并落盘，不用重启。
+
+| 改动 | 说明 |
+|---|---|
+| 配色系统 | `object Neu` 从写死颜色改成 `@Composable getter` 读 `LocalNeu`；`MusicTheme` 用 `CompositionLocalProvider` 下发。各页面照旧写 `Neu.Background`，**一行 UI 代码没改** |
+| 两套调色板 | `LightNeuPalette` / `DarkNeuPalette`。深色底 `#23262D`、暗影接近黑、高光只留一点 |
+| 光晕强度 | 深浅各一组 alpha。`drawHalo` 是 **10 层叠加**，深色不能照搬浅色的 0.05（会糊成实心块），最终取 0.08 / 0.05 |
+| 主题切换 | `AppPrefs.themeMode`（SYSTEM / LIGHT / DARK），DataStore 持久化，`MainActivity` 实时算 `darkTheme` |
+| 系统栏 | `WindowCompat.isAppearanceLightStatusBars / NavigationBars` 跟着皮肤切，否则深色下白底白字 |
+| 歌词配色 | `readableColor()` 加 dark 分支：浅色压暗、深色提亮，否则原来的淡色歌词在深底上看不见 |
+| Snackbar | 新增 `Neu.SnackbarBackground / Content`，两套皮肤都保持深底浅字 |
+| 启动闪屏 | `values-night` 的 `windowBackground` 改深色。注意：**强制深色 + 系统浅色**时仍会闪一帧浅色，窗口背景在 Activity 创建前就定了，读不到偏好 |
+
+> 验证状态：**仅编译验证**，未真机复核配色观感。
 
 ### v1.6.0 · 「删不删文件」改成每次删除时自己选
 
@@ -255,8 +276,8 @@ AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用
   这是 GPU 安全的，效果可看 dist/screenshots/。
 - 自带 Material 的 Slider 在拟态界面里很违和，所以**自己写了一个 NeuSlider**：凹陷轨道 +
   渐变进度 + 凸起圆形滑块，`detectTapGestures` + `detectHorizontalDragGestures` 双重手势。
-- 拟态天然依赖"元素与背景同色、靠阴影分层"，深色背景上阴影会糊成一片，所以 App
-  **不跟随系统深色模式**，固定浅色。
+- 拟态天然依赖"元素与背景同色、靠阴影分层"，深色背景上阴影容易糊成一片，所以
+  **不跟随系统深色模式**，固定浅色。（v1.7.0 起提供独立的深色皮肤，见上）
 - 全屏歌词页**也用同一套浅色拟态**（早期版本单独用深色配色，因与播放页观感不一致已改回浅色）。
   歌词文字颜色经 `readableColor()` 保留色相但压暗提饱和，保证在浅底上有足够对比度。
 
@@ -306,15 +327,15 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.6.0-release.apk` | **2.42 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.6.0-debug.apk` | 23.7 MB | 15 |
+| release（已签名，推荐） | `dist/轻响-LightMusic-1.7.0-release.apk` | **2.42 MB** | 1 |
+| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.7.0-debug.apk` | 23.7 MB | 15 |
 
 （原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
 
 装到手机：
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.6.0-release.apk
+adb install -r dist/轻响-LightMusic-1.7.0-release.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -338,15 +359,15 @@ release 包用 `keystore/lightmusic-release.jks` 签名：
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.6.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.7.0.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.6.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.7.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.6.0          # 需以 v 开头，如 v1.6.0 / v1.0.1 / v2.0.0
-git push origin v1.6.0  # 推上去即触发编译
+git tag v1.7.0          # 需以 v 开头，如 v1.7.0 / v1.0.1 / v2.0.0
+git push origin v1.7.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -431,6 +452,8 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 - 歌词偏移按文件 uri 记忆，歌曲文件被移动/改名后会丢失
 - 颜色只有 8 个预设，不能自定义任意色相（原色相滑条因定位不准已移除）
 - 通知栏控制在 Android 13+ 默认不可用（不申请通知权限，需到系统设置手动打开，见 v1.2）
+- **强制深色 + 系统浅色**时，冷启动会闪一帧浅色背景：`windowBackground` 在 Activity 创建前就定了，
+  读不到 DataStore 里的偏好；跟随系统则不会闪
 - **删除文件需要目录写权限**：1.4.1 及更早版本添加的目录只有读授权，
   点删除会提示「移除目录后重新添加」。重新添加同一个目录 tree uri 不变，收藏与歌词微调都还在
 - 删除是**物理删除**，不走系统回收站；误删无法在 App 内恢复

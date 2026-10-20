@@ -262,8 +262,8 @@ fun PlaylistScreen(
                 Snackbar(
                     snackbarData = data,
                     shape = NeuShapes.chip,
-                    containerColor = Neu.TextPrimary,
-                    contentColor = Neu.Background,
+                    containerColor = Neu.SnackbarBackground,
+                    contentColor = Neu.SnackbarContent,
                     actionContentColor = Neu.AccentSoft,
                 )
             }

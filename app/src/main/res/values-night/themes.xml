@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 拟态配色固定浅色，深色模式下窗口背景保持一致，避免闪色 -->
-    <style name="Theme.LightMusic" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">#FFE7EAF0</item>
+    <!--
+        系统处于深色模式时，启动窗口直接用深色底，避免冷启动先白闪一下。
+        注意：App 内「外观」可以强制深色而系统仍是浅色，这种情况下仍会闪一帧浅色，
+        因为窗口背景在 Activity 创建前就要定好，读不到 DataStore 里的偏好。
+    -->
+    <style name="Theme.LightMusic" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF23262D</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

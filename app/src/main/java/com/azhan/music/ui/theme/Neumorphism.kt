@@ -23,8 +23,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,15 +60,113 @@ import androidx.compose.ui.unit.dp
  *   凹陷 = Modifier.background(背景色, shape).neuInset(shape)
  * 两者的修饰符顺序不能颠倒，否则描边会被背景盖住。
  */
+/**
+ * 一套拟态配色。
+ *
+ * 拟态靠「元素与背景同色，用一亮一暗两圈光晕分层」，所以深浅两套**不是简单反色**：
+ * 深色下高光要收着画、暗影要压得更重，否则整块界面会糊成一片。
+ * 这几个 alpha 就是为这件事准备的，两套皮肤各给一组。
+ */
+@Immutable
+data class NeuPalette(
+    val background: Color,
+    val highlight: Color,
+    val shadow: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val accent: Color,
+    val accentSoft: Color,
+    /** 凸起：外圈暗影每层的 alpha */
+    val raisedShadowAlpha: Float,
+    /** 凸起：左上高光每层的 alpha */
+    val raisedHighlightAlpha: Float,
+    /** 凹陷：内描边暗端的 alpha */
+    val insetShadowAlpha: Float,
+    /** 凹陷：内描边亮端的 alpha */
+    val insetHighlightAlpha: Float,
+    val isDark: Boolean,
+)
+
+val LightNeuPalette = NeuPalette(
+    background = Color(0xFFE7EAF0),
+    highlight = Color(0xFFFFFFFF),
+    shadow = Color(0xFFBFC6D4),
+    textPrimary = Color(0xFF3B4351),
+    textSecondary = Color(0xFF8D97A8),
+    accent = Color(0xFF5B6CFF),
+    accentSoft = Color(0xFF97A2FF),
+    raisedShadowAlpha = 0.05f,
+    raisedHighlightAlpha = 0.085f,
+    insetShadowAlpha = 0.5f,
+    insetHighlightAlpha = 0.95f,
+    isDark = false,
+)
+
+/**
+ * 深色拟态：背景比纯黑亮一档（纯黑上暗影无处可去），
+ * 高光用比背景亮一档的灰蓝，暗影接近黑，靠 alpha 拉开层次。
+ */
+val DarkNeuPalette = NeuPalette(
+    background = Color(0xFF23262D),
+    highlight = Color(0xFF3B414D),
+    shadow = Color(0xFF0D0F13),
+    textPrimary = Color(0xFFE8EBF2),
+    textSecondary = Color(0xFF98A2B3),
+    accent = Color(0xFF7C8CFF),
+    accentSoft = Color(0xFFAEB8FF),
+    raisedShadowAlpha = 0.08f,
+    raisedHighlightAlpha = 0.05f,
+    insetShadowAlpha = 0.85f,
+    insetHighlightAlpha = 0.45f,
+    isDark = true,
+)
+
+/** 当前皮肤。MusicTheme 负责 provides，UI 不用关心深浅。 */
+val LocalNeu = staticCompositionLocalOf { LightNeuPalette }
+
+/**
+ * 全局配色入口。
+ *
+ * 属性都写成 `@Composable getter`，所以各页面照旧写 `Neu.Background` 就行，
+ * 换皮肤时会自动跟着 [LocalNeu] 重组 —— 不用把几十个文件改成传参。
+ */
 object Neu {
 
-    val Background = Color(0xFFE7EAF0)
-    val Highlight = Color(0xFFFFFFFF)
-    val Shadow = Color(0xFFBFC6D4)
-    val TextPrimary = Color(0xFF3B4351)
-    val TextSecondary = Color(0xFF8D97A8)
-    val Accent = Color(0xFF5B6CFF)
-    val AccentSoft = Color(0xFF97A2FF)
+    val palette: NeuPalette
+        @Composable @ReadOnlyComposable get() = LocalNeu.current
+
+    val Background: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.background
+
+    val Highlight: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.highlight
+
+    val Shadow: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.shadow
+
+    val TextPrimary: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.textPrimary
+
+    val TextSecondary: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.textSecondary
+
+    val Accent: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.accent
+
+    val AccentSoft: Color
+        @Composable @ReadOnlyComposable get() = LocalNeu.current.accentSoft
+
+    /**
+     * Snackbar 的「反色面」：两套皮肤都保持深底浅字。
+     * 深色皮肤下如果直接拿 TextPrimary 当底色，会变成一块刺眼的浅色浮层。
+     */
+    val SnackbarBackground: Color
+        @Composable @ReadOnlyComposable get() =
+            if (LocalNeu.current.isDark) Color(0xFF31353E) else LocalNeu.current.textPrimary
+
+    val SnackbarContent: Color
+        @Composable @ReadOnlyComposable get() =
+            if (LocalNeu.current.isDark) LocalNeu.current.textPrimary else LocalNeu.current.background
 }
 
 object NeuShapes {
@@ -78,15 +179,18 @@ object NeuShapes {
 /**
  * 凸起效果：在元素背后画两圈柔和光晕（右下暗影 + 左上高光）。
  * 必须在它之后再 .background(...)，否则背景会盖住光晕。
+ *
+ * 标成 @Composable 只为了能从 [LocalNeu] 取默认配色/强度；调用点都在 composable 里。
  */
+@Composable
 fun Modifier.neuRaised(
     shape: RoundedCornerShape = NeuShapes.card,
     blur: Dp = 12.dp,
     offset: Dp = 5.dp,
-    highlight: Color = Neu.Highlight,
-    shadow: Color = Neu.Shadow,
-    layerAlpha: Float = 0.05f,
-    highlightAlpha: Float = 0.085f,
+    highlight: Color = LocalNeu.current.highlight,
+    shadow: Color = LocalNeu.current.shadow,
+    layerAlpha: Float = LocalNeu.current.raisedShadowAlpha,
+    highlightAlpha: Float = LocalNeu.current.raisedHighlightAlpha,
 ): Modifier = drawBehind {
     val radius = shape.topStart.toPx(size, this)
     val blurPx = blur.toPx()
@@ -100,13 +204,14 @@ fun Modifier.neuRaised(
  * 凹陷效果：在元素内部沿边缘画一圈方向性渐变描边。
  * 必须在 .background(...) 之后调用。
  */
+@Composable
 fun Modifier.neuInset(
     shape: RoundedCornerShape = NeuShapes.card,
     stroke: Dp = 3.dp,
-    highlight: Color = Neu.Highlight,
-    shadow: Color = Neu.Shadow,
-    shadowAlpha: Float = 0.5f,
-    highlightAlpha: Float = 0.95f,
+    highlight: Color = LocalNeu.current.highlight,
+    shadow: Color = LocalNeu.current.shadow,
+    shadowAlpha: Float = LocalNeu.current.insetShadowAlpha,
+    highlightAlpha: Float = LocalNeu.current.insetHighlightAlpha,
 ): Modifier = drawWithContent {
     drawContent()
     val radius = shape.topStart.toPx(size, this)

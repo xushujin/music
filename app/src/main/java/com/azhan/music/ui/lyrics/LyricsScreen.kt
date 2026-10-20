@@ -91,16 +91,25 @@ private val PRESET_COLORS = listOf(
 /** 白色/近灰在浅色拟态背景上不可见，用这个墨色兜底。 */
 private val InkColor = Color(0xFF2B3040)
 
+/** 深色皮肤下近白/近灰反过来要用浅色，否则贴在 #23262D 上看不见。 */
+private val InkOnDark = Color(0xFFE8EBF2)
+
 /**
- * 歌词全屏改成浅色拟态后，原来那套淡色预设（白/淡黄/淡绿）在 #E7EAF0 上几乎看不见。
- * 这里保留用户选的**色相**，统一拉高饱和、压暗明度，保证对比度；
- * 近白/近灰（饱和度很低）没有色相可言，直接用墨色。
- * 色块也显示这个转换后的颜色，做到所见即所得。
+ * 歌词颜色适配当前皮肤。
+ *
+ * 浅色：保留色相，拉高饱和、压暗明度 —— 原来那套淡色预设（白/淡黄/淡绿）在 #E7EAF0 上几乎看不见。
+ * 深色：反过来，提亮明度、略降饱和，深底上才够醒目。
+ * 近白/近灰（饱和度很低）没有色相可言，浅色用墨色、深色用浅灰兜底。
+ * 色块也显示转换后的颜色，做到所见即所得。
  */
-private fun readableColor(argb: Long): Color {
+private fun readableColor(argb: Long, dark: Boolean): Color {
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(argb.toInt(), hsv)
-    return if (hsv[1] < 0.2f) InkColor else Color.hsv(hsv[0], 0.88f, 0.5f)
+    return when {
+        hsv[1] < 0.2f -> if (dark) InkOnDark else InkColor
+        dark -> Color.hsv(hsv[0], 0.65f, 1f)
+        else -> Color.hsv(hsv[0], 0.88f, 0.5f)
+    }
 }
 
 @Composable
@@ -174,7 +183,7 @@ fun LyricsScreen(app: MusicApp, onBack: () -> Unit) {
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val lyricColor = readableColor(prefs.color)
+    val lyricColor = readableColor(prefs.color, Neu.palette.isDark)
 
     Box(
         modifier = Modifier
@@ -437,7 +446,7 @@ private fun LyricControlPanel(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(readableColor(preset))
+                            .background(readableColor(preset, Neu.palette.isDark))
                             .border(
                                 width = if (selected) 3.dp else 1.dp,
                                 color = if (selected) Neu.TextPrimary else Neu.Shadow,
