@@ -1,7 +1,8 @@
 # 轻响 · 本地音乐播放器
 
 原生 Android 播放器，Kotlin + Jetpack Compose，**零第三方 UI 框架、零 DI 框架、零数据库**。
-只做两件事：**按目录建播放列表** + **同步歌词（全屏 / 换色 / 时间微调）**。
+核心是两件事：**按目录建播放列表** + **同步歌词（全屏 / 换色 / 时间微调）**，
+外加收藏、跨目录搜索，以及可选的「删除本地文件」。
 
 ---
 
@@ -62,8 +63,8 @@
 - Media3 ExoPlayer + MediaSessionService：**后台播放 + 系统通知栏控制 + 锁屏控制**（media3 自带，无需手写通知）
   - 注：App 不申请通知权限，Android 13+ 上通知默认不显示，需到系统设置手动打开（见 v1.2 实测）；后台播放本身不受影响
 - 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
-- **定时退出**：顶栏图标进入设置，预设 15 / 30 / 60 / 90 / 120 分钟，或自定义 1–600 分钟；
-  到点自动**停止播放并退出应用**。启用后顶栏图标变成显示剩余时间的小胶囊，可随时取消
+- **定时退出**：播放页顶栏的计时器图标打开定时面板，预设 15 / 30 / 60 / 90 / 120 分钟，或自定义 1–600 分钟；
+  到点默认**停止播放并退出应用**（设置里可改成仅暂停）。启用后顶栏图标变成显示剩余时间的小胶囊，可随时取消
 - 上一首：播放超过 3 秒时先回到本曲开头（主流播放器习惯）
 - 音频焦点处理、拔耳机自动暂停、本地唤醒锁
 
@@ -98,7 +99,7 @@ music/
 ├── LICENSE                            # Apache-2.0
 ├── .github/workflows/build-apk.yml    # 打 tag 自动编译 + 挂 GitHub Release
 ├── fdroid/com.azhan.music.yml         # F-Droid 上架配方（需提交到 fdroiddata）
-├── dist/                              # 本地交付的 APK（已 gitignore）
+├── dist/                              # 手动整理 APK 的目录（已 gitignore，构建不会自动生成）
 └── app/src/main/
     ├── AndroidManifest.xml
     ├── res/                            # 主题 + 拟态自适应图标（纯矢量，无二进制图）
@@ -109,7 +110,7 @@ music/
         ├── MainActivity.kt
         ├── data/
         │   ├── Models.kt               # Song / Playlist / LyricPrefs / AppPrefs
-        │   ├── MusicStore.kt           # DataStore + JSON 持久化（4 个 key 分开存）
+        │   ├── MusicStore.kt           # DataStore + JSON 持久化（5 个 key 分开存）
         │   ├── MusicScanner.kt         # SAF 递归遍历 + 按文件名配对歌词
         │   ├── LibraryRepository.kt    # 曲库状态机（StateFlow）+ 收藏
         │   └── LyricPrefsState.kt      # 歌词偏好（Compose state，写入去抖）
@@ -123,7 +124,7 @@ music/
         └── ui/
             ├── AppRoot.kt              # 导航（7 个页面，字符串路由）+ 启动恢复上次播放
             ├── theme/Theme.kt          # 浅色/深色拟态主题（LocalNeu 提供配色）
-            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuChip / NeuSwitch / NeuSegmented / NeuSlider）
+            ├── theme/Neumorphism.kt    # 拟态设计系统（NeuBox / NeuButton / NeuIconButton / NeuChip / NeuSwitch / NeuSegmented / NeuSlider）
             ├── common/                 # 时间格式化、歌词记忆、迷你播放条、歌曲行 SongRow、搜索框
             ├── home/HomeScreen.kt      # 目录列表 + 收藏 / 搜索 / 设置入口
             ├── favorites/FavoritesScreen.kt  # 收藏列表
@@ -225,9 +226,9 @@ v1.5.1 做成了全局开关（关掉后整列删除入口消失），理解偏�
 | 空态置灰 | 没有目录 / 没有收藏 / 没有微调时，对应按钮不可点，不再出现"点了没动静" |
 | 顺带修 | `addDirectory` / `rescan` 不再把 `CancellationException` 当扫描失败吞掉（离开页面中断扫描时能正常退出） |
 
-> 验证状态：**仅代码审查，未编译、未真机复核**（本机没有 Android SDK / JDK 21 工具链）。
+> 验证状态：**仅编译验证**（`assembleRelease` 通过），未真机复核。
 
-### v1.3～v1.6 · 近期改动（**仅编译验证，未做真机/模拟器复核**）
+### v1.3～v1.6 · 历史改动（**仅编译验证，未做真机/模拟器复核**）
 
 以下改动均通过 `./gradlew :app:assembleRelease`（BUILD SUCCESSFUL）+ `apksigner` 签名校验，
 但**没有在模拟器上做过视觉复核**，请以实际装机效果为准。
@@ -272,8 +273,8 @@ AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用
 
 **实现要点**（踩过坑的细节）：
 - Android 硬件加速画布**不支持** `setShadowLayer` / `BlurMaskFilter`（只对文字生效），
-  所以拟态阴影是**多层半透明圆角矩形叠加**出来的（10 层递进，每层 alpha 0.05）。
-  这是 GPU 安全的，效果可看 dist/screenshots/。
+  所以拟态阴影是**多层半透明圆角矩形叠加**出来的（10 层递进，浅色每层 alpha 0.05）。
+  这是 GPU 安全的；深色的 alpha 另有一套，见 v1.7.0 的说明。
 - 自带 Material 的 Slider 在拟态界面里很违和，所以**自己写了一个 NeuSlider**：凹陷轨道 +
   渐变进度 + 凸起圆形滑块，`detectTapGestures` + `detectHorizontalDragGestures` 双重手势。
 - 拟态天然依赖"元素与背景同色、靠阴影分层"，深色背景上阴影容易糊成一片，所以
@@ -304,17 +305,22 @@ AndroidManifest 里**保留**了权限声明：想要通知栏播放控制的用
 
 ## 三、构建
 
-> 本机已装好完整工具链（JDK + Android SDK），位于 `~/.android-build/`。
-> 下面的命令可以直接复制运行。
+### 环境要求
+
+| 项 | 要求 |
+|---|---|
+| JDK | 17+（CI 用 21；JDK 25 也实测能编译） |
+| Android SDK | `platforms;android-37.0`、`build-tools;36.0.0`、`platform-tools` |
+| Gradle | 不用单独装，wrapper 自带 9.8.1 |
+
+SDK 路径二选一：环境变量 `ANDROID_HOME`，或项目根 `local.properties` 里的 `sdk.dir`
+（`local.properties` 已 gitignore，不会入库）。
 
 ### 命令行构建
 
 ```bash
-cd /Users/wisdom/workbuddy-ai/music
-
-export JAVA_HOME="$HOME/.android-build/jdk/jdk-21.0.12.1+1/Contents/Home"
-export ANDROID_HOME="$HOME/.android-build/android-sdk"
-export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME=/path/to/jdk            # 改成你的 JDK 目录
+export ANDROID_HOME=/path/to/android-sdk
 
 # 体积小、运行快的正式包（推荐装机用）
 ./gradlew :app:assembleRelease
@@ -323,26 +329,26 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew :app:assembleDebug
 ```
 
-产物：
+产物（`dist/` **不在构建流程里**，需要的话自己把 APK 拷过去改名）：
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（已签名，推荐） | `dist/轻响-LightMusic-1.7.0-release.apk` | **2.42 MB** | 1 |
-| debug（便于看崩溃堆栈） | `dist/轻响-LightMusic-1.7.0-debug.apk` | 23.7 MB | 15 |
+| release（仓库内有 keystore 时已签名） | `app/build/outputs/apk/release/app-release.apk` | **2.42 MB** | 1 |
+| release（没有 keystore 时，**不能直接装**） | `app/build/outputs/apk/release/app-release-unsigned.apk` | 2.42 MB | 1 |
+| debug（便于看崩溃堆栈） | `app/build/outputs/apk/debug/app-debug.apk` | 22.7 MB | 16 |
 
-（原始产物也在 `app/build/outputs/apk/{release,debug}/` 下。）
-
-装到手机：
+装到手机：CI 产出的签名包最省事（见 GitHub Releases），下载后
 
 ```bash
-adb install -r dist/轻响-LightMusic-1.7.0-release.apk
+adb install -r LightMusic-v1.7.0.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
 
 ### 签名
 
-release 包用 `keystore/lightmusic-release.jks` 签名：
+本地构建时，如果仓库根放了 `keystore/lightmusic-release.jks`，release 包就用它签名
+（**该文件不入库**，需要自己放；没有就产出未签名包，见下面「签名来源分三档」）：
 
 - alias：`lightmusic`
 - store / key 密码：`lightmusic`
@@ -398,7 +404,8 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 ### Android Studio
 
-`File → Open` 选这个目录即可。`local.properties` 里已经指向本机 SDK。
+`File → Open` 选这个目录即可。首次打开时 AS 会自动生成 `local.properties` 指向你的 SDK；
+命令行构建则用 `ANDROID_HOME`，或在 `local.properties` 里手写 `sdk.dir`。
 
 ### 首次构建耗时
 
@@ -415,10 +422,10 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 | Kotlin | 2.4.21 | **AGP 9 起 Kotlin 支持内建，不再应用 `org.jetbrains.kotlin.android`** |
 | Compose BOM | 2026.09.00 | material3 + 图标库 |
 | Media3 | 1.11.1 | exoplayer + session |
-| DataStore | 1.2.2 | Preferences |
+| DataStore | 1.2.1 | Preferences |
 | compileSdk / targetSdk | 37 | 依赖链强制要求（navigation 2.10 / compose 1.12 等 16 个库要求 ≥ 37） |
 | minSdk | 26 | Android 8.0+，为了自适应图标与通知渠道 |
-| JDK | 21 | AGP 9 最低 17，用 21 更稳 |
+| JDK | 21 | AGP 9 最低 17；CI 固定 21，JDK 25 也实测可编译 |
 
 > 注：API 37 平台包在 SDK 里的路径是 `platforms;android-37.0`（新版改用主次版本号命名）。
 
@@ -426,7 +433,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 ## 五、设计取舍（为什么这么写）
 
-**用 SAF 而不是 MediaStore。** MediaStore 是"全机扫描"模型，没法表达"我只要这几个目录"，而且要 `READ_MEDIA_AUDIO` 权限。SAF 拿到的是持久化读权限，目录边界清晰，还能在 Android 14+ 的部分存储限制下正常工作。
+**用 SAF 而不是 MediaStore。** MediaStore 是"全机扫描"模型，没法表达"我只要这几个目录"，而且要 `READ_MEDIA_AUDIO` 权限。SAF 拿到的是持久化**读写**权限（播放只要读，删除文件要写），目录边界清晰，还能在 Android 14+ 的部分存储限制下正常工作。
 
 **冷启动不扫描。** 扫描结果落盘，启动时只读 JSON。3000 首的曲库启动耗时基本等于读一个几百 KB 的文件。代价是曲库不会自动跟随文件系统变化 —— 所以留了「重新扫描」按钮。
 
@@ -444,7 +451,8 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 ## 六、已知限制
 
-- 曲库不监听文件系统变化，新增/删除歌曲需要手动「重新扫描」
+- 曲库不监听文件系统变化：在 App 外新增/删除文件后需要手动「重新扫描」；
+  在 App 内删除文件会立刻从列表消失
 - 不支持内嵌歌词（仅 `.lrc` 外挂文件）、不支持逐字歌词（`.krc` / `.qrc`）
 - **不读任何音频标签**：没有专辑封面、艺术家、专辑、时长（列表里播放前不显示时长）；
   早期版本读标签会明显拖慢扫描，且标签与文件名不一致时歌词配对容易困惑，故有意省掉
@@ -480,7 +488,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 `material-icons-extended` 已被 androidx 冻结在 1.7.8（模块已从主干移除，但 Compose BOM 仍 pin 住这个版本，可正常解析）。
 
-它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 23.7 MB / 15 个 dex，release 包 **2.52 MB / 1 个 dex**。
+它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 22.7 MB / 16 个 dex，release 包 **2.42 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
 
 ---
@@ -503,8 +511,8 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 2. **提交构建配方**：配方已写好，见 [`fdroid/com.azhan.music.yml`](fdroid/com.azhan.music.yml)。
    把它复制到 `gitlab.com/fdroid/fdroiddata` 的 `metadata/` 目录（文件名必须是
    `com.azhan.music.yml`），然后提 MR。
-3. **每次发版必须递增 `versionCode`**：F-Droid 靠 `versionCode` 判断新旧，
-   一直停在 `1` 会导致新版本无法被识别。配方里配了 `UpdateCheckData`，
+3. **每次发版必须递增 `versionCode`**：F-Droid 靠 `versionCode` 判断新旧，重复的版本号不会被识别
+   （当前是 `12`）。配方里配了 `UpdateCheckData`，
    会自动从 `app/build.gradle.kts` 读取 `versionCode` / `versionName`。
 
 注意：F-Droid 版与本地/CI 版**签名不同**，用户切换时需要先卸载旧版。
