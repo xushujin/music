@@ -2,7 +2,7 @@
 
 原生 Android 播放器，Kotlin + Jetpack Compose，**零第三方 UI 框架、零 DI 框架、零数据库**。
 核心是两件事：**按目录建播放列表** + **同步歌词（全屏 / 换色 / 时间微调）**，
-外加收藏、跨目录搜索，以及可选的「删除本地文件」。
+外加收藏、跨目录搜索、可选的「删除本地文件」，以及应用内更新。
 
 ---
 
@@ -70,7 +70,7 @@
 
 ### 6. 设置与关于
 
-首页右上角齿轮进入。分五块：
+首页右上角齿轮进入。分六块：
 
 - **播放**：启动时恢复上次播放（**只装载、不自动播放**，避免一开 App 就出声）
 - **外观**：跟随系统 / 浅色 / 深色。深色是**另一套拟态配色**（不是反色），
@@ -80,12 +80,23 @@
   - 扫描期间按钮禁用并显示**实时进度**（目录名 + 已找到数量），不会重复叠加扫描
   - 操作结果用**页面内 Snackbar + 卡片底部「上次操作」**展示，不依赖系统 Toast
   - 清空收藏有二次确认，并告诉你清掉了多少首
+- **更新**：检查 / 下载 / 安装（见下一节）
 - **关于**：版本号（读 `BuildConfig.VERSION_NAME`）与一句话说明
 
 > **深色皮肤不是把浅色反色**：拟态靠"元素与背景同色、用一亮一暗两圈光晕分层"，
 > 纯黑背景上暗影无处可画、层次会糊。所以深色用 `#23262D`（比纯黑亮一档）做底，
 > 暗影接近黑、高光只留一点，见 `DarkNeuPalette` 里那组 alpha。
 > 状态栏/导航栏图标颜色会跟着皮肤切（`WindowCompat` 的 `isAppearanceLightStatusBars`）。
+
+### 7. 应用内更新
+
+- 设置 → 更新 →「检查更新」：查 GitHub Releases 的最新版本，显示版本号、体积和更新说明
+- 有新版可「下载更新」，带百分比进度；下完直接调系统安装器
+- **只在点按钮时联网**：没有后台检查、没有启动自检、不上报任何信息；
+  请求只发往 `api.github.com`，User-Agent 里带版本号
+- 下载后校验包名（`PackageManager.getPackageArchiveInfo`），不是本应用的 APK 直接丢弃
+- Android 8+ 首次安装需要允许「安装未知应用」，没开时会引导到系统设置页
+- 包存在 `cache/update/`，只留最新一个，旧的自动清理
 
 ---
 
@@ -121,6 +132,8 @@ music/
         ├── player/
         │   ├── PlaybackService.kt      # MediaSessionService
         │   └── PlaybackController.kt   # MediaController → Compose state + 定时退出
+        ├── update/
+        │   └── UpdateManager.kt        # 应用内更新（GitHub Releases → 下载 → 交给系统安装器）
         └── ui/
             ├── AppRoot.kt              # 导航（7 个页面，字符串路由）+ 启动恢复上次播放
             ├── theme/Theme.kt          # 浅色/深色拟态主题（LocalNeu 提供配色）
@@ -139,7 +152,23 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.7.0` / `versionCode 12`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.8.0` / `versionCode 13`）。
+
+### v1.8.0 · 应用内更新
+
+设置 → 更新：查 GitHub Releases → 下载 → 交给系统安装器。
+
+| 改动 | 说明 |
+|---|---|
+| 检查更新 | `UpdateManager` 请求 `api.github.com/repos/xushujin/music/releases/latest`，解析 `tag_name` / `assets`；语义化版本比较，只认主次修订号 |
+| 下载 | `HttpURLConnection` 流式写入 `cache/update/`，64 KB 缓冲，进度回调到 `StateFlow`；不引入 OkHttp/Retrofit |
+| 安全兜底 | 下载完用 `PackageManager.getPackageArchiveInfo` 校验包名，不是本应用的 APK 直接删掉 |
+| 安装 | `FileProvider` 暴露 `cache/update/`，`ACTION_VIEW` + `application/vnd.android.package-archive` 交给系统安装器；没开「安装未知应用」时引导到系统设置 |
+| 联网策略 | **只在用户点按钮时请求一次**，没有后台检查、启动自检、埋点；`INTERNET` 权限只为这一个请求而存在 |
+| 权限 | 新增 `INTERNET`、`REQUEST_INSTALL_PACKAGES` |
+| 文案 | 「关于」里原来的「不联网」改成「音频不上传」，避免和更新功能自相矛盾 |
+
+> 验证状态：**仅编译验证**，未真机走通「下载 → 安装」全流程。
 
 ### v1.7.0 · 深色皮肤
 
@@ -333,14 +362,14 @@ export ANDROID_HOME=/path/to/android-sdk
 
 | 包 | 路径 | 体积 | dex |
 |---|---|---|---|
-| release（仓库内有 keystore 时已签名） | `app/build/outputs/apk/release/app-release.apk` | **2.42 MB** | 1 |
-| release（没有 keystore 时，**不能直接装**） | `app/build/outputs/apk/release/app-release-unsigned.apk` | 2.42 MB | 1 |
+| release（仓库内有 keystore 时已签名） | `app/build/outputs/apk/release/app-release.apk` | **2.43 MB** | 1 |
+| release（没有 keystore 时，**不能直接装**） | `app/build/outputs/apk/release/app-release-unsigned.apk` | 2.43 MB | 1 |
 | debug（便于看崩溃堆栈） | `app/build/outputs/apk/debug/app-debug.apk` | 22.7 MB | 16 |
 
 装到手机：CI 产出的签名包最省事（见 GitHub Releases），下载后
 
 ```bash
-adb install -r LightMusic-v1.7.0.apk
+adb install -r LightMusic-v1.8.0.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -365,15 +394,15 @@ adb install -r LightMusic-v1.7.0.apk
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.7.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.8.0.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.7.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.8.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.7.0          # 需以 v 开头，如 v1.7.0 / v1.0.1 / v2.0.0
-git push origin v1.7.0  # 推上去即触发编译
+git tag v1.8.0          # 需以 v 开头，如 v1.8.0 / v1.0.1 / v2.0.0
+git push origin v1.8.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -443,6 +472,8 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 **没有 ViewModel。** 曲库是 App 级单例，状态在 `StateFlow` 里；歌词偏好和播放状态是 Compose state。UI 直接读，少一层转发。
 
+**更新是手动的，没有后台检查。** 一旦做自动检查，App 就从「完全不联网」变成「每次启动都发请求」，和其余部分的取舍不一致。现在只有用户点「检查更新」才会请求一次 `api.github.com`，代价是得自己想起来点；换来的是 `INTERNET` 权限只服务于这一个动作。
+
 **没有 Room。** 曲库是"整体读、整体写、量级几千条"的场景，DataStore + JSON 足够，省掉 KSP 编译开销和一套 schema 迁移。
 
 **歌词定位不用整树扫描。** 扫描时把配对好的 `lrcUri` 直接存下来；用户后补歌词时，顺着 `relPath` 逐级 `findFile` 只查一层目录，不重扫整棵树。
@@ -467,6 +498,10 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 - 删除是**物理删除**，不走系统回收站；误删无法在 App 内恢复
 - 「仅移除」只有 Snackbar 上的**撤销**入口，错过就没有别的恢复方式了
   （记录在 `removed_songs` 里，清应用数据会一起清掉）
+- 应用内更新走 GitHub API：`api.github.com` 在部分网络环境下不可达，会提示「连不上 GitHub」，
+  这时可以手动到 Releases 页下载
+- **自更新与 F-Droid 政策冲突**：F-Droid 不接受会自行安装更新的应用（绕过它的签名与审核）。
+  若要上架 F-Droid，需要在该构建里去掉更新入口——目前没有做渠道区分
 
 ## 七、后续可扩展方向
 
@@ -488,7 +523,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
 
 `material-icons-extended` 已被 androidx 冻结在 1.7.8（模块已从主干移除，但 Compose BOM 仍 pin 住这个版本，可正常解析）。
 
-它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 22.7 MB / 16 个 dex，release 包 **2.42 MB / 1 个 dex**。
+它体积很大（3700+ 个图标），但 **release 构建里 R8 会把没用到的全部裁掉**：实测 debug 包 22.7 MB / 16 个 dex，release 包 **2.43 MB / 1 个 dex**。
 所以除非你在意 debug 构建速度，否则不必替换它。真想去掉的话，把用到的十几个图标换成自建 `ImageVector` 即可。
 
 ---
@@ -512,8 +547,10 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
    把它复制到 `gitlab.com/fdroid/fdroiddata` 的 `metadata/` 目录（文件名必须是
    `com.azhan.music.yml`），然后提 MR。
 3. **每次发版必须递增 `versionCode`**：F-Droid 靠 `versionCode` 判断新旧，重复的版本号不会被识别
-   （当前是 `12`）。配方里配了 `UpdateCheckData`，
+   （当前是 `13`）。配方里配了 `UpdateCheckData`，
    会自动从 `app/build.gradle.kts` 读取 `versionCode` / `versionName`。
+4. **自更新与 F-Droid 规则冲突**：F-Droid 只允许由它分发更新，自带更新器的应用会被拒。
+   真要上架，需要给 F-Droid 构建关掉「更新」入口（目前没有做渠道区分，见「已知限制」）。
 
 注意：F-Droid 版与本地/CI 版**签名不同**，用户切换时需要先卸载旧版。
 另外 compileSdk 37 较新，F-Droid 构建服务器能否装到对应 SDK 需要实际验证——

@@ -6,6 +6,7 @@ import com.azhan.music.data.LyricPrefsState
 import com.azhan.music.data.MusicStore
 import com.azhan.music.lyrics.LyricsRepository
 import com.azhan.music.player.PlaybackController
+import com.azhan.music.update.UpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +24,9 @@ class MusicApp : Application() {
     val lyrics: LyricsRepository by lazy { LyricsRepository(this) }
     val player: PlaybackController by lazy { PlaybackController(this) }
     val lyricPrefs: LyricPrefsState by lazy { LyricPrefsState(store) }
+
+    /** 应用内更新。下载要能在离开设置页后继续，所以挂在 appScope 上。 */
+    val update: UpdateManager by lazy { UpdateManager(this, appScope) }
 
     override fun onCreate() {
         super.onCreate()

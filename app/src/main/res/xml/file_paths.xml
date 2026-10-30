@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只暴露更新包所在的缓存目录，其他位置不对外授权 -->
+<paths>
+    <cache-path
+        name="update"
+        path="update/" />
+</paths>

@@ -14,8 +14,8 @@ android {
         applicationId = "com.azhan.music"
         minSdk = 26
         targetSdk = 37
-        versionCode = 12
-        versionName = "1.7.0"
+        versionCode = 13
+        versionName = "1.8.0"
     }
 
     // 签名来源（按优先级）：

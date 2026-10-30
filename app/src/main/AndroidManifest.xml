@@ -6,6 +6,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!--
+        应用内更新：只有用户主动点「检查更新」时才会访问 api.github.com，
+        平时不联网、不上报任何信息。
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 8+ 安装 APK 需要；实际还要用户在系统设置里允许「安装未知应用」 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!--
         保留声明但不在运行时申请：
         Android 13+ 上默认不弹权限框、不显示播放通知；
         想要通知的用户可以在系统设置里手动打开，媒体通知会立刻恢复。
@@ -41,6 +49,17 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <!-- 更新包放在 cache/update/，通过 FileProvider 交给系统安装器 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

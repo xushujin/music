@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -31,8 +32,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.azhan.music.BuildConfig
@@ -46,8 +49,10 @@ import com.azhan.music.ui.theme.NeuIconButton
 import com.azhan.music.ui.theme.NeuSegmented
 import com.azhan.music.ui.theme.NeuShapes
 import com.azhan.music.ui.theme.NeuSwitch
+import com.azhan.music.update.UpdateState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * 设置页：全局配置 + 关于软件。
@@ -69,10 +74,12 @@ fun SettingsScreen(
     val playlists by app.library.playlists.collectAsStateWithLifecycle()
     val favorites by app.library.favorites.collectAsStateWithLifecycle()
     val scanning by app.library.scanning.collectAsStateWithLifecycle()
+    val updateState by app.update.state.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var rescanning by remember { mutableStateOf(false) }
     var confirmClearFavorites by remember { mutableStateOf(false) }
+    var showInstallHint by remember { mutableStateOf(false) }
     // 卡片里保留最近一次操作的结果：Snackbar 会自己消失，这行不会
     var lastResult by remember { mutableStateOf<String?>(null) }
 
@@ -271,6 +278,105 @@ fun SettingsScreen(
                 }
             }
 
+            // ---- 更新 ----
+            SettingCard(
+                title = "更新",
+                subtitle = "只有你点「检查更新」时才会访问 GitHub，不自动联网、不上报任何信息",
+            ) {
+                Text(
+                    text = "当前版本 v${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = Neu.TextPrimary,
+                )
+                Spacer(Modifier.height(10.dp))
+
+                when (val state = updateState) {
+                    UpdateState.Idle -> ActionButton(text = "检查更新") { app.update.check() }
+
+                    UpdateState.Checking -> ActionButton(text = "正在检查…", enabled = false) {}
+
+                    UpdateState.Latest -> {
+                        Text(
+                            text = "已是最新版本",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Neu.TextSecondary,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        ActionButton(text = "再检查一次") { app.update.check() }
+                    }
+
+                    is UpdateState.Available -> {
+                        Text(
+                            text = "发现 v${state.version} · ${formatSize(state.sizeBytes)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = Neu.Accent,
+                        )
+                        if (state.notes.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = state.notes,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Neu.TextSecondary,
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        ActionButton(text = "下载更新") { app.update.download() }
+                        Spacer(Modifier.height(6.dp))
+                        TextButton(
+                            onClick = { app.update.openReleasePage(state.pageUrl) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("在浏览器里查看发布页", color = Neu.Accent)
+                        }
+                    }
+
+                    is UpdateState.Downloading -> {
+                        Text(
+                            text = "正在下载 ${(state.progress * 100).toInt()}%" +
+                                "  ·  ${formatSize(state.downloaded)} / ${formatSize(state.total)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Neu.TextSecondary,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        LinearProgressIndicator(
+                            progress = { state.progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp),
+                            color = Neu.Accent,
+                            trackColor = Neu.Shadow.copy(alpha = 0.25f),
+                            strokeCap = StrokeCap.Round,
+                        )
+                    }
+
+                    is UpdateState.Ready -> {
+                        Text(
+                            text = "下载完成，可以安装了",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Neu.TextSecondary,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        ActionButton(text = "安装 v${state.version}") {
+                            if (!app.update.install(state.file)) showInstallHint = true
+                        }
+                    }
+
+                    is UpdateState.Failed -> {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        ActionButton(text = "重试") { app.update.check() }
+                    }
+                }
+            }
+
             // ---- 关于 ----
             SettingCard(title = "关于") {
                 Text(
@@ -281,7 +387,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "只播放你手机里已有的音频，不联网、不上传、不申请存储权限。" +
+                    text = "只播放你手机里已有的音频，音频不上传、不申请存储权限。" +
                         "目录通过系统文件选择器授权，随时可以在列表里移除。",
                     style = MaterialTheme.typography.bodySmall,
                     color = Neu.TextSecondary,
@@ -334,6 +440,46 @@ fun SettingsScreen(
             },
         )
     }
+
+    // 系统不允许安装未知应用时的引导
+    if (showInstallHint) {
+        AlertDialog(
+            onDismissRequest = { showInstallHint = false },
+            shape = NeuShapes.card,
+            containerColor = Neu.Background,
+            titleContentColor = Neu.TextPrimary,
+            textContentColor = Neu.TextSecondary,
+            title = { Text("需要允许安装应用", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Text(
+                    "系统默认不允许 App 自己安装 APK。请在接下来的设置页里允许「轻响」" +
+                        "安装未知应用，然后回来再点一次「安装」。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showInstallHint = false
+                        app.update.openInstallPermission()
+                    },
+                ) {
+                    Text("去设置", color = Neu.Accent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInstallHint = false }) {
+                    Text("取消", color = Neu.TextSecondary)
+                }
+            },
+        )
+    }
+}
+
+/** 下载体积展示：小于 1 MB 用 KB，避免出现 0.0 MB。 */
+private fun formatSize(bytes: Long): String = when {
+    bytes <= 0L -> "未知大小"
+    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    else -> String.format(Locale.CHINA, "%.1f MB", bytes / 1024f / 1024f)
 }
 
 /** 分区卡片：标题 + 可选副标题 + 一块凹陷留白的拟态面板。 */
