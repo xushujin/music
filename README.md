@@ -152,7 +152,15 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.8.0` / `versionCode 13`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.8.1` / `versionCode 14`）。
+
+### v1.8.1 · 下载进度条的总量未知兜底
+
+- 服务器没给 `Content-Length`、API 也没给 `size` 时，原来会一直显示 `0%` + 「未知大小」
+- 现在按 `total > 0` 分两种渲染：已知走确定态进度条，未知走**不确定态**（来回滑动）+ 只报已下载体积
+- 只改设置页的渲染分支，下载逻辑未动
+
+> 验证状态：**仅编译验证**。
 
 ### v1.8.0 · 应用内更新
 
@@ -369,7 +377,7 @@ export ANDROID_HOME=/path/to/android-sdk
 装到手机：CI 产出的签名包最省事（见 GitHub Releases），下载后
 
 ```bash
-adb install -r LightMusic-v1.8.0.apk
+adb install -r LightMusic-v1.8.1.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -394,15 +402,15 @@ adb install -r LightMusic-v1.8.0.apk
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.8.0.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.8.1.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.8.0.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.8.1.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.8.0          # 需以 v 开头，如 v1.8.0 / v1.0.1 / v2.0.0
-git push origin v1.8.0  # 推上去即触发编译
+git tag v1.8.1          # 需以 v 开头，如 v1.8.1 / v1.0.1 / v2.0.0
+git push origin v1.8.1  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -547,7 +555,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
    把它复制到 `gitlab.com/fdroid/fdroiddata` 的 `metadata/` 目录（文件名必须是
    `com.azhan.music.yml`），然后提 MR。
 3. **每次发版必须递增 `versionCode`**：F-Droid 靠 `versionCode` 判断新旧，重复的版本号不会被识别
-   （当前是 `13`）。配方里配了 `UpdateCheckData`，
+   （当前是 `14`）。配方里配了 `UpdateCheckData`，
    会自动从 `app/build.gradle.kts` 读取 `versionCode` / `versionName`。
 4. **自更新与 F-Droid 规则冲突**：F-Droid 只允许由它分发更新，自带更新器的应用会被拒。
    真要上架，需要给 F-Droid 构建关掉「更新」入口（目前没有做渠道区分，见「已知限制」）。

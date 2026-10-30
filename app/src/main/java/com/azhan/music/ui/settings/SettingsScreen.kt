@@ -335,22 +335,39 @@ fun SettingsScreen(
                     }
 
                     is UpdateState.Downloading -> {
+                        // 服务器没给 Content-Length 时（少数代理/重定向会丢），total 会是 0：
+                        // 这时别硬算百分比，改成不确定态进度条，只报已下载体积。
+                        val totalKnown = state.total > 0
                         Text(
-                            text = "正在下载 ${(state.progress * 100).toInt()}%" +
-                                "  ·  ${formatSize(state.downloaded)} / ${formatSize(state.total)}",
+                            text = if (totalKnown) {
+                                "正在下载 ${(state.progress * 100).toInt()}%" +
+                                    "  ·  ${formatSize(state.downloaded)} / ${formatSize(state.total)}"
+                            } else {
+                                "正在下载  ·  ${formatSize(state.downloaded)}"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = Neu.TextSecondary,
                         )
                         Spacer(Modifier.height(10.dp))
-                        LinearProgressIndicator(
-                            progress = { state.progress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp),
-                            color = Neu.Accent,
-                            trackColor = Neu.Shadow.copy(alpha = 0.25f),
-                            strokeCap = StrokeCap.Round,
-                        )
+                        val barModifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                        if (totalKnown) {
+                            LinearProgressIndicator(
+                                progress = { state.progress },
+                                modifier = barModifier,
+                                color = Neu.Accent,
+                                trackColor = Neu.Shadow.copy(alpha = 0.25f),
+                                strokeCap = StrokeCap.Round,
+                            )
+                        } else {
+                            LinearProgressIndicator(
+                                modifier = barModifier,
+                                color = Neu.Accent,
+                                trackColor = Neu.Shadow.copy(alpha = 0.25f),
+                                strokeCap = StrokeCap.Round,
+                            )
+                        }
                     }
 
                     is UpdateState.Ready -> {
