@@ -1,14 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  图标底层：左上偏亮、右下偏暗的斜向渐变（angle=315 即左上 → 右下）。
-  这一层既是拟态的"底"，也负责让上层的圆盘看起来是浮起来的：
-  圆盘用 App 背景色 #E7EAF0，四周左上更亮、右下更暗，就形成了凸起观感。
+  图标底层：单一光源（左上）下的哑光底材。
+
+  只有一层线性渐变：左上 #EFF2F7 → 右下 #D2D8E3。
+  中间加一个 0.55 的中间色，让过渡更慢，避免两段渐变在图标尺寸上出现硬转折。
+  不用径向、不用多光源 —— 光只从左上来一次。
 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:type="linear"
-        android:angle="315"
-        android:startColor="#FFF4F7FB"
-        android:endColor="#FFD5DCE7" />
-</shape>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item
+                    android:offset="0"
+                    android:color="#FFEFF2F7" />
+                <item
+                    android:offset="0.55"
+                    android:color="#FFE3E7EF" />
+                <item
+                    android:offset="1"
+                    android:color="#FFD2D8E3" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

@@ -1,36 +1,167 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  图标上层：拟态凸起圆盘 + 强调色音符。
-  配色取自 App 的拟态调色板（Neu.*）：
-    背景 #E7EAF0 / 阴影 #BFC6D4 / 强调色 #5B6CFF
-  立体感做法：底层渐变（左上亮、右下暗）+ 右下偏移的阴影月牙 + 圆盘用底色。
-  这样不依赖向量渐变（避免 <gradient> 坐标单位歧义），纯色填充即可。
+  图标上层：一块从底材上微微凸起的圆盘，中间压着一枚音符。
+
+  设计约束（柔光拟态 / Tactile Minimalism）：
+  - 只有一个光源，方向固定左上：高光在左上，投影在右下，全程不加第二处光；
+  - 所有体积都由渐变塑造，不用描边、不用分割线、不用多层重投影；
+  - 圆盘用「斜向渐变 + 左上柔光 + 右下内阴影」做出轻微隆起，不做镜面反光；
+  - 音符用填充形状（不是描边），旗子做成锥形收尾，缩小后仍是一个完整轮廓。
+
+  配色：底材/圆盘是近单色的冷灰，音符是低饱和的靛蓝，只作少量点缀。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 阴影：比圆盘略大、向右下偏移 1dp，只在右下露出一道月牙 -->
-    <path
-        android:pathData="M55,55m-30.5,0a30.5,30.5 0 1,0 61,0a30.5,30.5 0 1,0 -61,0"
-        android:fillColor="#99BFC6D4" />
+    <!-- 1. 圆盘投在底材上的柔和阴影（右下偏移，边缘渐隐） -->
+    <path android:pathData="M57.6,58.6 m-33,0 a33,33 0 1,0 66,0 a33,33 0 1,0 -66,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="57.6"
+                android:centerY="58.6"
+                android:gradientRadius="33">
+                <item
+                    android:offset="0.50"
+                    android:color="#52586074" />
+                <item
+                    android:offset="0.72"
+                    android:color="#29586074" />
+                <item
+                    android:offset="1"
+                    android:color="#00586074" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-    <!-- 凸起圆盘：用 App 背景色，靠底层渐变浮起来 -->
-    <path
-        android:pathData="M54,54m-30,0a30,30 0 1,0 60,0a30,30 0 1,0 -60,0"
-        android:fillColor="#FFE7EAF0" />
+    <!-- 2. 圆盘本体：左上受光、右下背光的斜向渐变 -->
+    <path android:pathData="M54,54 m-29.5,0 a29.5,29.5 0 1,0 59,0 a29.5,29.5 0 1,0 -59,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="30"
+                android:startY="24"
+                android:endX="80"
+                android:endY="86">
+                <item
+                    android:offset="0"
+                    android:color="#FFFCFDFF" />
+                <item
+                    android:offset="0.5"
+                    android:color="#FFF1F4F9" />
+                <item
+                    android:offset="1"
+                    android:color="#FFDCE1EA" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-    <!-- 音符：App 强调色。24dp 图标的包围盒是 x 6~18 / y 3~21（中心 12,12），
-         放大 1.9 倍后 translate = 54 - 12*1.9 = 31.2，正好居中 -->
+    <!-- 3. 左上柔光：中心最亮、向外缓慢消失，不形成可见边界 -->
+    <path android:pathData="M45,43 m-26,0 a26,26 0 1,0 52,0 a26,26 0 1,0 -52,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="45"
+                android:centerY="43"
+                android:gradientRadius="26">
+                <item
+                    android:offset="0"
+                    android:color="#7AFFFFFF" />
+                <item
+                    android:offset="0.62"
+                    android:color="#1FFFFFFF" />
+                <item
+                    android:offset="1"
+                    android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 4. 右下内阴影：把圆盘边缘往回收，避免看起来像贴纸 -->
+    <path android:pathData="M54,54 m-29.5,0 a29.5,29.5 0 1,0 59,0 a29.5,29.5 0 1,0 -59,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="29.5">
+                <item
+                    android:offset="0.42"
+                    android:color="#0048505F" />
+                <item
+                    android:offset="0.80"
+                    android:color="#1A48505F" />
+                <item
+                    android:offset="1"
+                    android:color="#2E48505F" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 5. 唯一焦点：一枚微微压入的八分音符 -->
     <group
-        android:scaleX="1.9"
-        android:scaleY="1.9"
-        android:translateX="31.2"
-        android:translateY="31.2">
-        <path
-            android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z"
-            android:fillColor="#FF5B6CFF" />
+        android:translateX="0.4"
+        android:translateY="-1.4">
+
+        <!-- 符干（顶部与旗子连成一体） -->
+        <path android:pathData="M54.2,63.6 L54.2,41 L58.4,41 L58.4,63.6 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="44"
+                    android:startY="38"
+                    android:endX="68"
+                    android:endY="70">
+                    <item
+                        android:offset="0"
+                        android:color="#FF5D68A4" />
+                    <item
+                        android:offset="1"
+                        android:color="#FF8D96C7" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 符尾：上宽下窄的锥形，末端收成圆角，避免出现尖角 -->
+        <path android:pathData="M58.4,40.4 C64.4,42 67.4,46.8 66.9,52.9 C66.7,53.9 65.8,54 65.3,53.2 C63.9,49 61.5,45.9 58.4,44.6 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="44"
+                    android:startY="38"
+                    android:endX="68"
+                    android:endY="70">
+                    <item
+                        android:offset="0"
+                        android:color="#FF5D68A4" />
+                    <item
+                        android:offset="1"
+                        android:color="#FF8D96C7" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 符头：-20° 的椭圆，用四段贝塞尔精确绘制（不依赖 path 的弧线旋转参数） -->
+        <path android:pathData="M55.484,62.240 C56.598,65.302 54.599,68.841 51.018,70.144 C47.437,71.448 43.631,70.022 42.516,66.960 C41.402,63.898 43.401,60.359 46.982,59.056 C50.563,57.752 54.369,59.178 55.484,62.240 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="44"
+                    android:startY="38"
+                    android:endX="68"
+                    android:endY="70">
+                    <item
+                        android:offset="0"
+                        android:color="#FF5D68A4" />
+                    <item
+                        android:offset="1"
+                        android:color="#FF8D96C7" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 </vector>

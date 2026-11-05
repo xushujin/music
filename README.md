@@ -114,8 +114,8 @@ music/
 └── app/src/main/
     ├── AndroidManifest.xml
     ├── res/                            # 主题 + 拟态自适应图标（纯矢量，无二进制图）
-    │                                   #   底层左上亮/右下暗渐变，上层凸起圆盘 + 强调色音符
-    │                                   #   配色取自 Neu.*（#E7EAF0 / #BFC6D4 / #5B6CFF）
+    │                                   #   圆盘 + 音符，单一左上光源，全部用渐变塑形
+    │                                   #   底材 #EFF2F7→#D2D8E3，音符 #5D68A4→#8D96C7
     └── java/com/azhan/music/
         ├── MusicApp.kt                 # 手写依赖容器（唯一的"注入"处）
         ├── MainActivity.kt
@@ -152,7 +152,22 @@ music/
 
 ## 二·五、实测验证记录
 
-> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.8.1` / `versionCode 14`）。
+> 这里的 v1.x 是**文档迭代标签**，不等于 APK 的 `versionName`（当前是 `1.9.0` / `versionCode 15`）。
+
+### v1.9.0 · 新图标（柔光拟态 / 触感极简）
+
+按「一块被用久的器物」重做 launcher icon，替换掉原来的 Material 硬边字形。
+
+| 改动 | 说明 |
+|---|---|
+| 形体 | 一块微微隆起的圆盘 + 一枚压入的八分音符；全圆角，没有描边和分割线 |
+| 光 | **只有一个左上光源**：左上柔光、右下投影 + 边缘内阴影，全部用渐变画，不加第二处光 |
+| 材质 | 哑光冷灰底材，高光峰值只到 0.48 alpha —— 不镜面、不发光、不透明 |
+| 色彩 | 近单色冷灰（`#EFF2F7 → #D2D8E3`）+ 低饱和靛蓝音符（`#5D68A4 → #8D96C7`），只作点缀 |
+| 音符 | 用**填充形状**而不是描边（描边画旗子会读成逗号），旗尾做锥形收圆，48dp 下仍是完整轮廓 |
+| 主题图标 | 新增 `ic_launcher_monochrome`，Android 13+ 主题图标只保留音符轮廓，由系统着色 |
+
+> 验证状态：**仅编译验证**；预览图用同一套坐标的 SVG 在 48 / 72 / 192 和圆形遮罩下比对过，未真机看桌面效果。
 
 ### v1.8.1 · 下载进度条的总量未知兜底
 
@@ -377,7 +392,7 @@ export ANDROID_HOME=/path/to/android-sdk
 装到手机：CI 产出的签名包最省事（见 GitHub Releases），下载后
 
 ```bash
-adb install -r LightMusic-v1.8.1.apk
+adb install -r LightMusic-v1.9.0.apk
 ```
 
 也可以直接把 APK 传到手机上点击安装（需要允许"安装未知来源应用"）。
@@ -402,15 +417,15 @@ adb install -r LightMusic-v1.8.1.apk
 执行 `./gradlew assembleRelease`。产物有两个去处：
 
 - **GitHub Release**（仅 tag 构建）：自动创建/更新对应 tag 的 Release，
-  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.8.1.apk`
+  并把 APK 作为附件挂上去，文件名形如 `LightMusic-v1.9.0.apk`
   （**附件名必须纯 ASCII**：GitHub 会删掉 Release 资源名里的非 ASCII 字符，
-  用中文名会被削成 `-LightMusic-v1.8.1.apk` 这种带前导横线的怪名字）。
+  用中文名会被削成 `-LightMusic-v1.9.0.apk` 这种带前导横线的怪名字）。
   已存在同名 Release 时会**覆盖**附件（`gh release upload --clobber`），可安全重跑。
 - **Artifact**（tag 与手动触发都有）：名为 `lightmusic-release-apk`，保留 90 天。
 
 ```bash
-git tag v1.8.1          # 需以 v 开头，如 v1.8.1 / v1.0.1 / v2.0.0
-git push origin v1.8.1  # 推上去即触发编译
+git tag v1.9.0          # 需以 v 开头，如 v1.9.0 / v1.0.1 / v2.0.0
+git push origin v1.9.0  # 推上去即触发编译
 ```
 
 > 普通 `git push` 到 `main` **不会**触发编译（避免每次提交都跑一次构建）。
@@ -555,7 +570,7 @@ base64 -i keystore/lightmusic-release.jks | pbcopy   # 直接进剪贴板，粘�
    把它复制到 `gitlab.com/fdroid/fdroiddata` 的 `metadata/` 目录（文件名必须是
    `com.azhan.music.yml`），然后提 MR。
 3. **每次发版必须递增 `versionCode`**：F-Droid 靠 `versionCode` 判断新旧，重复的版本号不会被识别
-   （当前是 `14`）。配方里配了 `UpdateCheckData`，
+   （当前是 `15`）。配方里配了 `UpdateCheckData`，
    会自动从 `app/build.gradle.kts` 读取 `versionCode` / `versionName`。
 4. **自更新与 F-Droid 规则冲突**：F-Droid 只允许由它分发更新，自带更新器的应用会被拒。
    真要上架，需要给 F-Droid 构建关掉「更新」入口（目前没有做渠道区分，见「已知限制」）。

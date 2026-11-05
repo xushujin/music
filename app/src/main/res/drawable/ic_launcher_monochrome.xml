@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 13+ 主题图标用的单色层：只保留音符轮廓，由系统统一着色。
+  圆盘不画 —— 系统会自己给底色，画上会变成一坨实心圆。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:translateX="0.4"
+        android:translateY="-1.4">
+        <path
+            android:pathData="M54.2,63.6 L54.2,41 L58.4,41 L58.4,63.6 Z"
+            android:fillColor="#FF000000" />
+        <path
+            android:pathData="M58.4,40.4 C64.4,42 67.4,46.8 66.9,52.9 C66.7,53.9 65.8,54 65.3,53.2 C63.9,49 61.5,45.9 58.4,44.6 Z"
+            android:fillColor="#FF000000" />
+        <path
+            android:pathData="M55.484,62.240 C56.598,65.302 54.599,68.841 51.018,70.144 C47.437,71.448 43.631,70.022 42.516,66.960 C41.402,63.898 43.401,60.359 46.982,59.056 C50.563,57.752 54.369,59.178 55.484,62.240 Z"
+            android:fillColor="#FF000000" />
+    </group>
+</vector>
